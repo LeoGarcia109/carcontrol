@@ -105,3 +105,5 @@ coverage/
 .nyc_output/
 *.test.js
 *.spec.js
+CLAUDE.md
+.claude/settings.local.json

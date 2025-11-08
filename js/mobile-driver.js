@@ -408,12 +408,19 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Event listeners
     setupEventListeners();
 
+    // Inicializar Speed Dial FAB
+    initSpeedDialFAB();
+
     // Tornar funções acessíveis para onclick handlers
     // IMPORTANTE: NÃO sobrescrever logout - usar a do auth.js
     window.openNewRouteModal = openNewRouteModal;
     window.closeNewRouteModal = closeNewRouteModal;
     window.filterRoutes = filterRoutes;
     window.closeFinalizeRouteModal = closeFinalizeRouteModal;
+    window.openExpenseModal = openExpenseModal;
+    window.closeExpenseModal = closeExpenseModal;
+    window.toggleExpenseFields = toggleExpenseFields;
+    window.submitExpense = submitExpense;
     // NÃO definir window.logout - manter a função do auth.js
 });
 
@@ -1078,4 +1085,325 @@ function toSqlDateTime(date) {
     const mi = pad(date.getMinutes());
     const ss = pad(date.getSeconds());
     return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+}
+
+// ===========================
+// SPEED DIAL FAB
+// ===========================
+
+function initSpeedDialFAB() {
+    const fabContainer = document.querySelector('.fab-container');
+    const fabMain = document.getElementById('fabMain');
+    const fabBackdrop = document.getElementById('fabBackdrop');
+    const fabSecondaryButtons = document.querySelectorAll('.fab-secondary');
+
+    if (!fabContainer || !fabMain || !fabBackdrop) {
+        console.error('Speed Dial FAB elements not found');
+        return;
+    }
+
+    // Toggle Speed Dial menu
+    fabMain.addEventListener('click', () => {
+        fabContainer.classList.toggle('active');
+    });
+
+    // Fechar ao clicar no backdrop
+    fabBackdrop.addEventListener('click', () => {
+        fabContainer.classList.remove('active');
+    });
+
+    // Ações dos botões secundários
+    fabSecondaryButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const action = button.dataset.action;
+
+            // Fechar Speed Dial
+            fabContainer.classList.remove('active');
+
+            // Executar ação
+            if (action === 'route') {
+                openRouteModal();
+            } else if (action === 'expense') {
+                openExpenseModal();
+            }
+        });
+    });
+}
+
+// ===========================
+// MODAL DE DESPESAS
+// ===========================
+
+function openExpenseModal() {
+    const modal = document.getElementById('expenseModal');
+    const form = document.getElementById('expenseForm');
+
+    if (!modal || !form) {
+        console.error('Expense modal elements not found');
+        return;
+    }
+
+    // Resetar formulário
+    form.reset();
+
+    // Auto-preencher veículo da rota ativa
+    populateExpenseVehicle();
+
+    // Auto-preencher data/hora atual
+    const now = new Date();
+    const dateInput = document.getElementById('expenseDate');
+    if (dateInput) {
+        dateInput.value = now.toISOString().slice(0, 16);
+    }
+
+    // Categoria padrão: abastecimento
+    const categorySelect = document.getElementById('expenseCategory');
+    if (categorySelect) {
+        categorySelect.value = 'abastecimento';
+        toggleExpenseFields();
+    }
+
+    // Bind dos listeners de cálculo automático
+    bindExpenseListeners();
+
+    // Mostrar modal
+    modal.classList.add('active');
+}
+
+function closeExpenseModal() {
+    const modal = document.getElementById('expenseModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+function populateExpenseVehicle() {
+    const vehicleSelect = document.getElementById('expenseVehicle');
+    if (!vehicleSelect) return;
+
+    // Buscar rotas ativas do motorista
+    const activeRoutes = usageRecords.filter(r =>
+        r.driverId === currentDriver?.id &&
+        r.status === 'em_uso'
+    );
+
+    if (activeRoutes.length > 0) {
+        // Pegar a primeira rota ativa
+        const activeRoute = activeRoutes[0];
+        const vehicle = vehicles.find(v => v.id === activeRoute.vehicleId);
+
+        if (vehicle) {
+            vehicleSelect.innerHTML = `
+                <option value="${vehicle.id}" selected>
+                    ${vehicle.plate} - ${vehicle.brand} ${vehicle.model}
+                </option>
+            `;
+            vehicleSelect.disabled = true;
+        }
+    } else {
+        vehicleSelect.innerHTML = '<option value="">Nenhum veículo em uso</option>';
+        vehicleSelect.disabled = true;
+    }
+}
+
+function toggleExpenseFields() {
+    const category = document.getElementById('expenseCategory')?.value;
+    const fuelFields = document.getElementById('fuelFields');
+    const totalInput = document.getElementById('expenseTotal');
+    const totalHelper = document.getElementById('expenseTotalHelper');
+
+    if (category === 'abastecimento') {
+        // Mostrar campos de combustível
+        if (fuelFields) fuelFields.style.display = 'flex';
+
+        // Tornar total readonly (calculado automaticamente)
+        if (totalInput) {
+            totalInput.readOnly = true;
+            totalInput.placeholder = 'Calculado automaticamente';
+        }
+
+        if (totalHelper) {
+            totalHelper.textContent = 'Calculado automaticamente (litros × preço)';
+        }
+    } else {
+        // Esconder campos de combustível
+        if (fuelFields) fuelFields.style.display = 'none';
+
+        // Tornar total editável
+        if (totalInput) {
+            totalInput.readOnly = false;
+            totalInput.placeholder = 'R$ 0,00';
+        }
+
+        if (totalHelper) {
+            totalHelper.textContent = 'Digite o valor da despesa';
+        }
+
+        // Limpar campos de combustível
+        const litersInput = document.getElementById('expenseLiters');
+        const priceInput = document.getElementById('expensePricePerLiter');
+        if (litersInput) litersInput.value = '';
+        if (priceInput) priceInput.value = '';
+    }
+}
+
+function bindExpenseListeners() {
+    const litersInput = document.getElementById('expenseLiters');
+    const priceInput = document.getElementById('expensePricePerLiter');
+    const totalInput = document.getElementById('expenseTotal');
+
+    if (!litersInput || !priceInput || !totalInput) return;
+
+    // Função para calcular total
+    const calculateTotal = () => {
+        const category = document.getElementById('expenseCategory')?.value;
+        if (category !== 'abastecimento') return;
+
+        const liters = parseFloat(litersInput.value) || 0;
+        const priceStr = priceInput.value.replace(/[^\d,]/g, '').replace(',', '.');
+        const price = parseFloat(priceStr) || 0;
+
+        const total = liters * price;
+        totalInput.value = formatCurrency(total);
+    };
+
+    // Formatar preço enquanto digita
+    priceInput.addEventListener('input', (e) => {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length === 0) {
+            e.target.value = '';
+            calculateTotal();
+            return;
+        }
+
+        value = parseInt(value).toString();
+        const length = value.length;
+
+        if (length <= 2) {
+            value = 'R$ 0,' + value.padStart(2, '0');
+        } else {
+            const cents = value.slice(-2);
+            const reais = value.slice(0, -2);
+            value = 'R$ ' + reais + ',' + cents;
+        }
+
+        e.target.value = value;
+        calculateTotal();
+    });
+
+    // Calcular ao mudar litros
+    litersInput.addEventListener('input', calculateTotal);
+}
+
+function formatCurrency(value) {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(value);
+}
+
+async function submitExpense() {
+    const vehicleId = parseInt(document.getElementById('expenseVehicle')?.value);
+    const category = document.getElementById('expenseCategory')?.value;
+    const date = document.getElementById('expenseDate')?.value;
+    const km = document.getElementById('expenseKm')?.value;
+    const liters = document.getElementById('expenseLiters')?.value;
+    const priceStr = document.getElementById('expensePricePerLiter')?.value;
+    const totalStr = document.getElementById('expenseTotal')?.value;
+    const notes = document.getElementById('expenseNotes')?.value;
+
+    // Validações
+    if (!vehicleId) {
+        showToast('Nenhum veículo disponível. Inicie uma rota primeiro.', 'error');
+        return;
+    }
+
+    if (!category) {
+        showToast('Selecione uma categoria', 'error');
+        return;
+    }
+
+    if (!date) {
+        showToast('Informe a data e hora', 'error');
+        return;
+    }
+
+    // Validar KM se informado
+    if (km) {
+        const vehicle = vehicles.find(v => v.id === vehicleId);
+        const currentKm = parseInt(km);
+
+        if (vehicle && currentKm < vehicle.currentKm) {
+            showToast('KM não pode ser menor que o KM atual do veículo', 'error');
+            return;
+        }
+    }
+
+    // Preparar dados
+    const expenseData = {
+        vehicleId,
+        category,
+        date: toSqlDateTime(new Date(date)),
+        currentKm: km ? parseInt(km) : null,
+        notes: notes || null
+    };
+
+    // Se for abastecimento, incluir litros e preço
+    if (category === 'abastecimento') {
+        if (!liters || !priceStr) {
+            showToast('Informe os litros e o preço por litro', 'error');
+            return;
+        }
+
+        const price = parseFloat(priceStr.replace(/[^\d,]/g, '').replace(',', '.'));
+        expenseData.liters = parseFloat(liters);
+        expenseData.pricePerLiter = price;
+        expenseData.totalValue = expenseData.liters * expenseData.pricePerLiter;
+    } else {
+        // Para outras categorias, usar valor total informado
+        if (!totalStr) {
+            showToast('Informe o valor total da despesa', 'error');
+            return;
+        }
+
+        const total = parseFloat(totalStr.replace(/[^\d,]/g, '').replace(',', '.'));
+        expenseData.totalValue = total;
+    }
+
+    try {
+        const response = await apiCreateExpense(expenseData);
+
+        if (response.success) {
+            showToast('Despesa registrada com sucesso!', 'success');
+            closeExpenseModal();
+
+            // Recarregar dados se necessário
+            // await loadRoutes();
+        } else {
+            showToast(response.message || 'Erro ao registrar despesa', 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao registrar despesa:', error);
+        showToast('Erro ao registrar despesa', 'error');
+    }
+}
+
+// Adicionar função global para API de despesas (se não existir em api.js)
+async function apiCreateExpense(expenseData) {
+    try {
+        const response = await fetch('http://localhost:5000/expenses', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(expenseData)
+        });
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('API Error:', error);
+        throw error;
+    }
 }

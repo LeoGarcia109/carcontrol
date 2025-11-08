@@ -538,36 +538,179 @@ body {
     box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
-/* Floating Action Button */
-.fab {
+/* Floating Action Button - Speed Dial */
+.fab-container {
     position: fixed;
     bottom: 2rem;
     right: 1.5rem;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1rem;
+}
+
+/* Backdrop para fechar menu ao clicar fora */
+.fab-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 998;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.fab-container.active .fab-backdrop {
+    display: block;
+    opacity: 1;
+}
+
+/* Botão principal do FAB */
+.fab-main {
+    width: 56px;
+    height: 56px;
     background: var(--gradient-primary);
     color: white;
     border: none;
-    border-radius: 16px;
-    padding: 1rem 1.5rem;
+    border-radius: 50%;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    justify-content: center;
     cursor: pointer;
     box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 100;
-    font-weight: 600;
-    font-size: 0.9rem;
+    z-index: 1001;
+    position: relative;
 }
 
-.fab:hover {
-    transform: translateY(-4px);
+.fab-main:hover {
+    transform: scale(1.1);
     box-shadow: 0 12px 32px rgba(102, 126, 234, 0.5);
 }
 
-.fab:active {
+.fab-main:active {
     transform: scale(0.95);
 }
 
+/* Rotação do ícone quando aberto */
+.fab-container.active .fab-main {
+    transform: rotate(45deg);
+}
+
+.fab-container.active .fab-main:hover {
+    transform: rotate(45deg) scale(1.1);
+}
+
+/* Ícones do FAB main */
+.fab-icon-default,
+.fab-icon-close {
+    transition: opacity 0.2s ease;
+}
+
+.fab-container.active .fab-icon-default {
+    display: none;
+}
+
+.fab-container.active .fab-icon-close {
+    display: block !important;
+}
+
+/* Botões secundários (ações) */
+.fab-secondary {
+    width: 48px;
+    height: 48px;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 999;
+    opacity: 0;
+    transform: scale(0) translateY(20px);
+    pointer-events: none;
+    position: relative;
+}
+
+/* Animação de entrada dos botões secundários */
+.fab-container.active .fab-secondary {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    pointer-events: all;
+}
+
+.fab-container.active .fab-secondary:nth-child(2) {
+    transition-delay: 0.05s;
+}
+
+.fab-container.active .fab-secondary:nth-child(3) {
+    transition-delay: 0.1s;
+}
+
+.fab-secondary:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    background: rgba(255, 255, 255, 0.95);
+}
+
+.fab-secondary:active {
+    transform: scale(0.95);
+}
+
+/* Cores específicas dos botões secundários */
+.fab-secondary[data-action="route"] {
+    color: var(--primary);
+}
+
+.fab-secondary[data-action="route"]:hover {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+}
+
+.fab-secondary[data-action="expense"] {
+    color: var(--success);
+}
+
+.fab-secondary[data-action="expense"]:hover {
+    background: linear-gradient(135deg, rgba(72, 187, 120, 0.15), rgba(56, 161, 105, 0.15));
+}
+
+/* Tooltips dos botões */
+.fab-tooltip {
+    position: absolute;
+    right: 60px;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.fab-secondary:hover .fab-tooltip {
+    opacity: 1;
+}
+
+/* Text helper (mantido para compatibilidade) */
 .fab-text {
     letter-spacing: 0.3px;
 }
@@ -716,6 +859,56 @@ form {
     font-size: 0.75rem;
     color: var(--text-muted);
     font-weight: 400;
+}
+
+/* Expense Modal - Fuel Fields */
+#fuelFields {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+#fuelFields .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+#expenseTotal[readonly] {
+    background: rgba(102, 126, 234, 0.05);
+    cursor: not-allowed;
+}
+
+.modal-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.modal-title svg {
+    color: var(--primary);
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    border-radius: 8px;
+}
+
+.modal-close:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+    transform: rotate(90deg);
 }
 
 /* Info Card */
