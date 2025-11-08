@@ -67,7 +67,7 @@ async function startGPSTracking(usageId, vehicleId) {
                     maximumAge: 0
                 }
             );
-        }, 180000); // Atualizar a cada 3 minutos (180 segundos)
+        }, 20000); // Atualizar a cada 20 segundos
 
         showToast('Rastreamento GPS ativado', 'success');
         return true;
@@ -1122,7 +1122,7 @@ function initSpeedDialFAB() {
 
             // Executar ação
             if (action === 'route') {
-                openRouteModal();
+                openNewRouteModal();
             } else if (action === 'expense') {
                 openExpenseModal();
             }

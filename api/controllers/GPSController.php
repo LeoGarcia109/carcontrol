@@ -125,7 +125,7 @@ class GPSController {
                         ultima_atualizacao as timestamp,
                         segundos_desde_atualizacao as secondsSinceUpdate
                       FROM vw_ultima_localizacao
-                      WHERE segundos_desde_atualizacao < 180
+                      WHERE segundos_desde_atualizacao < 60
                       ORDER BY ultima_atualizacao DESC";
 
             $stmt = $this->db->prepare($query);

@@ -475,9 +475,9 @@ function startAutoUpdate() {
 
     updateInterval = setInterval(() => {
         updateVehicleMarkers();
-    }, 180000); // 3 minutos (180 segundos)
+    }, 20000); // 20 segundos
 
-    console.log('Atualização automática do mapa GPS iniciada (3 minutos)');
+    console.log('Atualização automática do mapa GPS iniciada (20 segundos)');
 }
 
 // Parar atualização automática
