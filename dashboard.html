@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Controle de Veículos</title>
+    <link rel="stylesheet" href="css/styles.css">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+</head>
+<body>
+    <div class="dashboard active">
+        <div class="sidebar" id="sidebar">
+            <button class="sidebar-toggle" onclick="toggleSidebar()">
+                <i data-lucide="chevron-left" class="toggle-icon"></i>
+            </button>
+            <h2>Sistema de Veículos</h2>
+                <ul class="nav-menu">
+                <li><a href="#dashboard" class="nav-link active" onclick="showSection('dashboard')">
+                    <i data-lucide="bar-chart-3" class="nav-icon"></i>
+                    <span class="nav-text">Dashboard</span>
+                </a></li>
+                <li><a href="#uso-veiculos" class="nav-link" onclick="showSection('uso-veiculos')">
+                    <i data-lucide="clipboard-list" class="nav-icon"></i>
+                    <span class="nav-text">Uso de Veículos</span>
+                </a></li>
+                <li><a href="#despesas" class="nav-link" onclick="showSection('despesas')">
+                    <i data-lucide="credit-card" class="nav-icon"></i>
+                    <span class="nav-text">Despesas</span>
+                </a></li>
+                <li><a href="#manutencao" class="nav-link" onclick="showSection('manutencao')">
+                    <i data-lucide="wrench" class="nav-icon"></i>
+                    <span class="nav-text">Manutenção</span>
+                </a></li>
+                <li><a href="#alertas" class="nav-link" onclick="showSection('alertas')">
+                    <i data-lucide="alert-triangle" class="nav-icon"></i>
+                    <span class="nav-text">Alertas</span>
+                </a></li>
+                <li><a href="#rastreamento" class="nav-link" onclick="showSection('rastreamento')">
+                    <i data-lucide="navigation" class="nav-icon"></i>
+                    <span class="nav-text">Rastreamento GPS</span>
+                </a></li>
+                <li><a href="#cadastros" class="nav-link" onclick="showSection('cadastros')">
+                    <i data-lucide="folder" class="nav-icon"></i>
+                    <span class="nav-text">Cadastros</span>
+                </a></li>
+            </ul>
+            <div class="version-info">
+                <span class="version-text">v0.1.0 Beta</span>
+            </div>
+            <button class="logout-btn" onclick="logout()">
+                <i data-lucide="log-out" class="logout-icon"></i>
+                <span>Sair</span>
+            </button>
+        </div>
+        
+        <div class="main-content">
+            <div class="header">
+                <h1>Dashboard - Controle de Veículos</h1>
+                <div>
+                    <p id="welcomeMessage">Bem-vindo</p>
+                    <span id="userRoleBadge" class="user-role-badge role-admin">Admin</span>
+                </div>
+            </div>
+            
+            <!-- Seção Dashboard -->
+            <div id="dashboard" class="content-section active">
+                <h2 class="section-title">Visão Geral da Frota</h2>
+
+                <!-- KPIs Principais -->
+                <div class="kpi-cards">
+                    <!-- KPI 1: Frota Total -->
+                    <div class="stat-card kpi-primary">
+                        <div class="stat-icon-text">FROTA TOTAL</div>
+                        <div class="stat-number" id="kpiFleetTotal">0</div>
+                        <div class="stat-label">Veículos Cadastrados</div>
+                        <div class="stat-detail" id="kpiFleetBreakdown">
+                            <span class="fleet-status-item">
+                                <span class="status-dot status-available"></span>
+                                <span id="kpiFleetAvailable">0</span> Disponíveis
+                            </span>
+                            <span class="fleet-status-item">
+                                <span class="status-dot status-in-use"></span>
+                                <span id="kpiFleetInUse">0</span> Em uso
+                            </span>
+                            <span class="fleet-status-item">
+                                <span class="status-dot status-maintenance"></span>
+                                <span id="kpiFleetMaintenance">0</span> Manutenção
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- KPI 2: Alertas Críticos -->
+                    <div class="stat-card kpi-alert">
+                        <div class="stat-icon-text">ALERTAS</div>
+                        <div class="stat-number" id="kpiTotalAlerts">0</div>
+                        <div class="stat-label">Pendências Críticas</div>
+                        <div class="stat-detail" id="kpiAlertsDetail">
+                            <span style="color: #f59e0b;">
+                                <span id="kpiMaintenanceCount">0</span> Manutenções
+                            </span>
+                            <span style="color: #ef4444; margin-left: 12px;">
+                                <span id="kpiCNHCount">0</span> CNHs
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- KPI 3: Custo Total -->
+                    <div class="stat-card kpi-cost">
+                        <div class="stat-icon-text">CUSTO TOTAL</div>
+                        <div class="stat-number" id="kpiTotalCost">R$ 0</div>
+                        <div class="stat-label">Manutenções Realizadas</div>
+                        <div class="stat-detail" id="kpiCostDetail">Últimos 6 meses</div>
+                    </div>
+
+                    <!-- KPI 4: Motoristas -->
+                    <div class="stat-card kpi-driver">
+                        <div class="stat-icon-text">MOTORISTAS</div>
+                        <div class="stat-number" id="kpiDashboardTotalDrivers">0</div>
+                        <div class="stat-label">Total Cadastrados</div>
+                        <div class="stat-detail" id="kpiDashboardDriversBreakdown">
+                            <span class="fleet-status-item">
+                                <span class="status-dot status-available"></span>
+                                <span id="kpiDashboardActiveDrivers">0</span> Ativos
+                            </span>
+                            <span class="fleet-status-item">
+                                <span class="status-dot status-maintenance"></span>
+                                <span id="kpiDashboardInactiveDrivers">0</span> Inativos
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Linha 2: Status da Frota + Mapa GPS em Tempo Real -->
+                <div class="dashboard-row-2">
+                    <!-- Status da Frota -->
+                    <div class="stat-card ranking-card">
+                        <div class="stat-icon-text">STATUS DA FROTA</div>
+                        <div style="height: 320px; margin-top: 12px;">
+                            <canvas id="fleetStatusChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Mapa GPS em Tempo Real -->
+                    <div class="stat-card ranking-card">
+                        <div class="stat-icon-text">RASTREAMENTO EM TEMPO REAL</div>
+                        <div id="dashboardGpsMap" style="height: 320px; margin-top: 12px; border-radius: 8px; overflow: hidden;"></div>
+                    </div>
+                </div>
+
+                <!-- Linha 3: Rankings Top 5 -->
+                <div class="rankings-grid">
+                    <!-- Ranking: Top 5 Veículos -->
+                    <div class="stat-card ranking-card">
+                        <div class="stat-icon-text">TOP 5 VEÍCULOS MAIS UTILIZADOS</div>
+                        <div class="ranking-list" id="rankingVehicles">
+                            <div class="ranking-empty">Carregando...</div>
+                        </div>
+                    </div>
+
+                    <!-- Ranking: Top 5 Motoristas -->
+                    <div class="stat-card ranking-card">
+                        <div class="stat-icon-text">TOP 5 MOTORISTAS MAIS ATIVOS</div>
+                        <div class="ranking-list" id="rankingDrivers">
+                            <div class="ranking-empty">Carregando...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráficos -->
+                <div class="charts-grid">
+                    <!-- Linha 1: 2 Colunas - Gráficos de Manutenção -->
+                    <div class="chart-container">
+                        <h3 class="chart-title">Custos Mensais de Manutenção</h3>
+                        <canvas id="maintenanceCostsChart"></canvas>
+                    </div>
+
+                    <div class="chart-container">
+                        <h3 class="chart-title">Manutenções por Tipo</h3>
+                        <canvas id="maintenanceTypesChart"></canvas>
+                    </div>
+
+                    <!-- Linha 2: 1 Coluna Full Width -->
+                    <div class="chart-container chart-full">
+                        <h3 class="chart-title">CNHs - Vencimentos Próximos</h3>
+                        <canvas id="cnhTimelineChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seção Cadastros -->
+            <div id="cadastros" class="content-section">
+                <h2 class="section-title">📋 Cadastros</h2>
+
+                <!-- Sistema de Tabs -->
+                <div class="cadastros-tabs">
+                    <button class="cadastro-tab-btn active" onclick="showCadastroTab('veiculos')">
+                        <i data-lucide="car"></i> Veículos
+                    </button>
+                    <button class="cadastro-tab-btn" onclick="showCadastroTab('motoristas')">
+                        <i data-lucide="users"></i> Motoristas
+                    </button>
+                    <button class="cadastro-tab-btn" onclick="showCadastroTab('destinos')">
+                        <i data-lucide="map-pin"></i> Destinos
+                    </button>
+                </div>
+
+                <!-- Conteúdo das Tabs -->
+                <div class="cadastros-content">
+
+            <!-- Tab: Seção Veículos -->
+            <div id="veiculos" class="cadastro-tab-panel active">
+                <h2 class="section-title">Gestão de Veículos</h2>
+                <button class="btn btn-success" onclick="resetVehicleForm(); openModal('vehicleModal')">Novo Veículo</button>
+                <div class="table-container">
+                    <table id="vehiclesTable">
+                        <thead>
+                            <tr>
+                                <th>Foto</th>
+                                <th>Placa</th>
+                                <th>Marca/Modelo</th>
+                                <th>Ano</th>
+                                <th>Status</th>
+                                <th>KM Atual</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vehiclesTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab: Seção Motoristas -->
+            <div id="motoristas" class="cadastro-tab-panel">
+                <h2 class="section-title">Gestão de Motoristas</h2>
+                <button class="btn btn-success" onclick="resetDriverForm(); openModal('driverModal')">Novo Motorista</button>
+                <div class="table-container">
+                    <table id="driversTable">
+                        <thead>
+                            <tr>
+                                <th>Foto</th>
+                                <th>Motorista</th>
+                                <th>CNH</th>
+                                <th>Validade</th>
+                                <th>Status CNH</th>
+                                <th>KM Total</th>
+                                <th>Telefone</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="driversTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab: Seção Destinos -->
+            <div id="destinos" class="cadastro-tab-panel">
+                <h2 class="section-title">Cadastro de Destinos</h2>
+                <button class="btn btn-success" onclick="resetDestinationForm(); openModal('destinationModal')">Novo Destino</button>
+                <div class="table-container">
+                    <table id="destinationsTable">
+                        <thead>
+                            <tr>
+                                <th>Nome do Destino</th>
+                                <th>Distância (KM)</th>
+                                <th>Data de Cadastro</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="destinationsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+                </div><!-- Fim: cadastros-content -->
+            </div><!-- Fim: Seção Cadastros -->
+
+            <!-- Seção Uso de Veículos -->
+            <div id="uso-veiculos" class="content-section">
+                <h2 class="section-title">Controle de Uso de Veículos</h2>
+
+                <!-- KPIs de Uso de Veículos -->
+                <div class="kpi-cards">
+                    <div class="stat-card kpi-usage-total">
+                        <div class="stat-icon-text">TOTAL VIAGENS</div>
+                        <div class="stat-number" id="kpiTotalTrips">0</div>
+                        <div class="stat-label">Registros cadastrados</div>
+                        <div class="stat-detail" id="kpiTripsBreakdown">
+                            <span class="fleet-status-item">
+                                <span class="status-dot status-in-use"></span>
+                                <span id="kpiActiveTrips">0</span> Ativas
+                            </span>
+                            <span class="fleet-status-item">
+                                <span class="status-dot status-available"></span>
+                                <span id="kpiCompletedTrips">0</span> Finalizadas
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card kpi-distance">
+                        <div class="stat-icon-text">DISTÂNCIA TOTAL</div>
+                        <div class="stat-number" id="kpiTotalDistance">0 km</div>
+                        <div class="stat-label">Quilômetros percorridos</div>
+                        <div class="stat-detail" id="kpiDistanceDetail">Últimos 30 dias</div>
+                    </div>
+
+                    <div class="stat-card kpi-popular-destination">
+                        <div class="stat-icon-text">DESTINO POPULAR</div>
+                        <div class="stat-number" id="kpiPopularDestination">-</div>
+                        <div class="stat-label">Mais visitado</div>
+                        <div class="stat-detail" id="kpiPopularDestinationCount">0 viagens</div>
+                    </div>
+
+                    <div class="stat-card kpi-active-vehicle">
+                        <div class="stat-icon-text">VEÍCULO ATIVO</div>
+                        <div class="stat-number" id="kpiMostUsedVehicle">-</div>
+                        <div class="stat-label">Mais utilizado</div>
+                        <div class="stat-detail" id="kpiMostUsedVehicleCount">0 viagens</div>
+                    </div>
+                </div>
+
+                <!-- Botão Nova Viagem -->
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+                    <button class="btn btn-success" onclick="resetUsageForm(); openModal('usageModal')">
+                        + Nova Viagem
+                    </button>
+                </div>
+
+                <!-- Filtros Redesenhados -->
+                <div class="filters-container">
+                    <div class="advanced-filters">
+                        <div class="filter-group">
+                            <label for="filterVehicle">VEÍCULO</label>
+                            <select id="filterVehicle" class="filter-select">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="filterDriver">MOTORISTA</label>
+                            <select id="filterDriver" class="filter-select">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="filterDestination">DESTINO</label>
+                            <select id="filterDestination" class="filter-select">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="filterDateStart">DATA INICIAL</label>
+                            <input type="date" id="filterDateStart" class="filter-select">
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="filterDateEnd">DATA FINAL</label>
+                            <input type="date" id="filterDateEnd" class="filter-select">
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="filterStatus">STATUS</label>
+                            <select id="filterStatus" class="filter-select">
+                                <option value="">Todos</option>
+                                <option value="em-uso">Em uso</option>
+                                <option value="finalizada">Finalizadas</option>
+                            </select>
+                        </div>
+
+                        <!-- Botões integrados na mesma linha -->
+                        <div class="filters-actions-inline">
+                            <button class="btn btn-primary" onclick="applyUsageFilters()">
+                                Aplicar
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearUsageFilters()">
+                                Limpar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Resumo de Filtros Ativos -->
+                    <div id="activeFiltersDisplay" class="active-filters-display" style="display: none;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <span class="active-filters-label">Filtros ativos:</span>
+                            <div id="filterBadges" class="filter-badges-container"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabela de Uso -->
+                <div class="table-container">
+                    <table id="usageTable">
+                        <thead>
+                            <tr>
+                                <th>Veículo</th>
+                                <th>Placa</th>
+                                <th>Motorista</th>
+                                <th>Destino</th>
+                                <th class="sortable" onclick="sortUsageTable('departure')">Saída <span class="sort-icon">⇅</span></th>
+                                <th class="sortable" onclick="sortUsageTable('return')">Retorno <span class="sort-icon">⇅</span></th>
+                                <th style="text-align: center;">Duração</th>
+                                <th style="text-align: center;">KM Percorridos</th>
+                                <th style="text-align: center;">Custo (R$)</th>
+                                <th style="text-align: center;">Intercorrência</th>
+                                <th style="text-align: center;">Aprovação</th>
+                                <th style="text-align: center;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usageTableBody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Mensagem vazia -->
+                <div id="usageEmptyState" class="usage-empty-state" style="display: none;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">🚗</div>
+                    <h3>Nenhuma viagem encontrada</h3>
+                    <p>Não há registros que correspondam aos filtros selecionados</p>
+                    <button class="btn btn-primary" onclick="clearUsageFilters()">Limpar Filtros</button>
+                </div>
+            </div>
+
+            <!-- Seção Despesas -->
+            <div id="despesas" class="content-section">
+                <h2 class="section-title">Despesas / Abastecimento</h2>
+
+                <!-- KPI Cards para Despesas -->
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <h3>Total do Mês</h3>
+                        <p class="stat-value" id="expenseMonthTotal">R$ 0,00</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Abastecimento</h3>
+                        <p class="stat-value" id="expenseFuelTotal">R$ 0,00</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Manutenção</h3>
+                        <p class="stat-value" id="expenseMaintenanceTotal">R$ 0,00</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Média Consumo</h3>
+                        <p class="stat-value" id="expenseAvgConsumption">-- L/100km</p>
+                    </div>
+                </div>
+
+                <!-- Filtros de Despesas -->
+                <div class="filters-container" style="margin-top: 20px; margin-bottom: 20px;">
+                    <div class="filter-group">
+                        <label for="expenseFilterPeriod">Período:</label>
+                        <select id="expenseFilterPeriod" class="filter-select" onchange="filterExpenses()">
+                            <option value="">Todos</option>
+                            <option value="today">Hoje</option>
+                            <option value="week">Esta Semana</option>
+                            <option value="month" selected>Este Mês</option>
+                            <option value="last30">Últimos 30 dias</option>
+                            <option value="last90">Últimos 90 dias</option>
+                            <option value="year">Este Ano</option>
+                            <option value="custom">Personalizado</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group" id="customDateRange" style="display:none;">
+                        <label for="expenseFilterStartDate">De:</label>
+                        <input type="date" id="expenseFilterStartDate" class="filter-input" onchange="filterExpenses()">
+                        <label for="expenseFilterEndDate">Até:</label>
+                        <input type="date" id="expenseFilterEndDate" class="filter-input" onchange="filterExpenses()">
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="expenseFilterVehicle">Veículo:</label>
+                        <select id="expenseFilterVehicle" class="filter-select" onchange="filterExpenses()">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="expenseFilterDriver">Motorista:</label>
+                        <select id="expenseFilterDriver" class="filter-select" onchange="filterExpenses()">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="expenseFilterCategory">Categoria:</label>
+                        <select id="expenseFilterCategory" class="filter-select" onchange="filterExpenses()">
+                            <option value="">Todas</option>
+                            <option value="abastecimento">Abastecimento</option>
+                            <option value="manutencao">Manutenção</option>
+                            <option value="ipva">IPVA</option>
+                            <option value="multa">Multa</option>
+                            <option value="seguro">Seguro</option>
+                            <option value="licenciamento">Licenciamento</option>
+                            <option value="pneus">Pneus</option>
+                            <option value="lavagem">Lavagem</option>
+                            <option value="documentacao">Documentação</option>
+                            <option value="pedagio">Pedágio</option>
+                            <option value="estacionamento">Estacionamento</option>
+                            <option value="outros">Outros</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <button class="btn btn-primary" onclick="filterExpenses()">Aplicar Filtros</button>
+                        <button class="btn btn-secondary" onclick="clearExpenseFilters()">Limpar</button>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 12px; display:flex; gap:10px;">
+                    <button class="btn btn-success" onclick="openModal('expenseModal'); resetExpenseForm()">Nova Despesa</button>
+                    <button class="btn btn-secondary" onclick="loadExpensesTable()">Atualizar</button>
+                    <button class="btn btn-info" onclick="exportExpenses()">Exportar</button>
+                </div>
+                <div class="table-container">
+                    <table id="expensesTable">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Veículo</th>
+                                <th>Categoria</th>
+                                <th>KM</th>
+                                <th>Litros</th>
+                                <th>Preço/L</th>
+                                <th>Total</th>
+                                <th>Observações</th>
+                                <th style="text-align:center;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expensesTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Modal Despesa -->
+            <div id="expenseModal" class="modal">
+                <div class="modal-content" style="max-width: 720px;">
+                    <span class="close" onclick="closeModal('expenseModal')">&times;</span>
+                    <h3>Nova Despesa</h3>
+                    <form id="expenseForm" onsubmit="event.preventDefault(); addExpense()">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="expenseVehicle">Veículo</label>
+                                <select id="expenseVehicle" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="expenseCategory">Categoria</label>
+                                <select id="expenseCategory" required onchange="toggleExpenseFields()">
+                                    <option value="abastecimento">Abastecimento</option>
+                                    <option value="manutencao">Manutenção</option>
+                                    <option value="ipva">IPVA</option>
+                                    <option value="multa">Multa</option>
+                                    <option value="seguro">Seguro</option>
+                                    <option value="licenciamento">Licenciamento</option>
+                                    <option value="pneus">Pneus</option>
+                                    <option value="lavagem">Lavagem</option>
+                                    <option value="documentacao">Documentação</option>
+                                    <option value="pedagio">Pedágio</option>
+                                    <option value="estacionamento">Estacionamento</option>
+                                    <option value="outros">Outros</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="expenseDate">Data e Hora</label>
+                                <input type="datetime-local" id="expenseDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="expenseKm">KM Atual</label>
+                                <input type="number" id="expenseKm" min="0" placeholder="Opcional">
+                            </div>
+                        </div>
+                        <div id="fuelFields" class="form-row">
+                            <div class="form-group">
+                                <label for="expenseLiters">Quantidade (litros)</label>
+                                <input type="number" id="expenseLiters" step="0.01" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="expensePricePerLiter">Preço por Litro (R$)</label>
+                                <input type="text" id="expensePricePerLiter" placeholder="R$ 0,00">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group" style="flex:1;">
+                                <label for="expenseTotal">Valor Total (R$)</label>
+                                <input type="text" id="expenseTotal" placeholder="R$ 0,00 (auto)" readonly>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="expenseNotes">Observações</label>
+                            <textarea id="expenseNotes" rows="3" placeholder="Opcional"></textarea>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <button type="submit" class="btn btn-success">Salvar</button>
+                            <button type="button" class="btn btn-secondary" onclick="closeModal('expenseModal')">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Modal Intercorrência -->
+            <div id="incidentModal" class="modal">
+                <div class="modal-content" style="max-width: 720px;">
+                    <span class="close" onclick="closeModal('incidentModal')">&times;</span>
+                    <h3>Intercorrência da Viagem</h3>
+                    <div id="incidentDetails" style="margin-top: 12px; display: grid; gap: 12px;">
+                        <div>
+                            <strong style="color: #fff;">Observações:</strong>
+                            <div id="incidentNotes" style="margin-top: 6px; white-space: pre-wrap; color: #fff;">-</div>
+                        </div>
+                        <div id="incidentPhotoBlock" style="display:none;">
+                            <strong>Foto:</strong>
+                            <div id="incidentPhotoWrapper" style="margin-top: 6px; width: 100%; max-height: 420px; overflow: hidden; border-radius: 8px; border: 1px solid #e0e0e0;">
+                                <img id="incidentPhoto" alt="Foto da intercorrência" style="width: 100%; height: auto; display: block;" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seção Manutenção -->
+            <div id="manutencao" class="content-section">
+                <h2 class="section-title">Controle de Manutenção</h2>
+                <button class="btn btn-success" onclick="resetMaintenanceForm(); openModal('maintenanceModal')">Novo Registro</button>
+                <div class="table-container">
+                    <table id="maintenanceTable">
+                        <thead>
+                            <tr>
+                                <th>Veículo</th>
+                                <th>Tipo</th>
+                                <th>Data</th>
+                                <th>KM</th>
+                                <th>Valor</th>
+                                <th>Descrição</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="maintenanceTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Seção Alertas -->
+            <div id="alertas" class="content-section">
+                <h2 class="section-title">Alertas e Notificações</h2>
+                <div id="alertsContainer">
+                    <!-- Alertas serão carregados aqui -->
+                </div>
+            </div>
+
+            <!-- Seção Rastreamento GPS -->
+            <div id="rastreamento" class="content-section">
+                <h2 class="section-title">Rastreamento GPS</h2>
+
+                <!-- Tab Navigation -->
+                <div class="gps-tabs" style="display: flex; gap: 12px; margin-bottom: 24px; border-bottom: 2px solid rgba(255,255,255,0.18);">
+                    <button class="btn btn-primary gps-tab-btn active" data-tab="realtime">
+                        Tempo Real
+                    </button>
+                    <button class="btn btn-secondary gps-tab-btn" data-tab="history">
+                        Histórico
+                    </button>
+                </div>
+
+                <!-- Tab 1: Real-Time Tracking -->
+                <div id="tab-realtime" class="gps-tab-panel active">
+                    <!-- Mapa -->
+                    <div class="map-container">
+                        <div id="gpsMap" style="height: 600px; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);"></div>
+                    </div>
+
+                    <!-- Informações dos veículos ativos -->
+                    <div class="active-vehicles-info" style="margin-top: 20px;">
+                        <h3 class="section-subtitle">Veículos Ativos</h3>
+                        <div id="activeVehiclesList" class="vehicles-grid">
+                            <!-- Veículos ativos serão carregados aqui -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Route History -->
+                <div id="tab-history" class="gps-tab-panel" style="display: none;">
+                    <div class="route-history-layout" style="display: grid; grid-template-columns: 350px 1fr; gap: 20px; height: 700px;">
+
+                        <!-- Sidebar esquerda com lista de rotas -->
+                        <div class="route-sidebar card" style="overflow-y: auto; padding: 20px;">
+                            <h3 class="section-subtitle" style="margin-bottom: 15px;">Viagens Finalizadas</h3>
+                            <div id="routeSidebar">
+                                <!-- Route cards serão carregados aqui via JS -->
+                            </div>
+                        </div>
+
+                        <!-- Mapa direita -->
+                        <div class="route-map-container" style="position: relative;">
+                            <div id="routeHistoryMap" style="height: 100%; border-radius: 12px; overflow: hidden;"></div>
+
+                            <!-- Floating info card sobre o mapa - formato cápsula centralizado -->
+                            <div id="routeInfoOverlay" class="route-info-capsule" style="display: none;">
+                                <!-- Info da rota será carregada aqui -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modais -->
+    <div id="vehicleModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('vehicleModal')">&times;</span>
+            <h3 id="vehicleModalTitle">Novo Veículo</h3>
+            <form id="vehicleForm">
+                <input type="hidden" id="vehicleId">
+
+                <!-- Foto do Veículo -->
+                <div class="form-group" style="text-align: center; margin-bottom: 20px;">
+                    <label>Foto do Veículo:</label>
+                    <div id="vehiclePhotoPreview" style="width: 200px; height: 150px; margin: 10px auto; border: 2px dashed #ccc; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #f5f5f5;">
+                        <span style="color: #999;">Sem foto</span>
+                    </div>
+                    <input type="file" id="vehiclePhoto" accept="image/*" onchange="previewVehiclePhoto(event)" style="display: none;">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('vehiclePhoto').click()">📷 Selecionar Foto</button>
+                    <button type="button" class="btn btn-danger" onclick="removeVehiclePhoto()" id="removeVehiclePhotoBtn" style="display: none;">🗑️ Remover</button>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Placa:</label>
+                        <input type="text" id="vehiclePlate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Marca:</label>
+                        <input type="text" id="vehicleBrand" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Modelo:</label>
+                        <input type="text" id="vehicleModel" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Ano:</label>
+                        <input type="number" id="vehicleYear" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>KM Inicial:</label>
+                        <input type="number" id="vehicleInitialKm" required min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>KM Atual:</label>
+                        <input type="number" id="vehicleKm" required min="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Status:</label>
+                        <select id="vehicleStatus" required>
+                            <option value="disponivel">Disponível</option>
+                            <option value="em-uso">Em Uso</option>
+                            <option value="manutencao">Em Manutenção</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Revisão por KM:</label>
+                        <select id="vehicleMaintenanceKm" required>
+                            <option value="5000">5.000 km</option>
+                            <option value="10000" selected>10.000 km</option>
+                            <option value="12000">12.000 km</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Revisão por Tempo:</label>
+                        <select id="vehicleMaintenanceTime" required>
+                            <option value="3">3 meses</option>
+                            <option value="6" selected>6 meses</option>
+                            <option value="9">9 meses</option>
+                            <option value="12">12 meses</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Última Revisão (Data):</label>
+                        <input type="date" id="vehicleLastMaintenanceDate">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>KM da Última Revisão:</label>
+                        <input type="number" id="vehicleLastMaintenanceKm" min="0">
+                    </div>
+                    <div class="form-group"></div>
+                </div>
+                <button type="submit" class="btn btn-success">Salvar</button>
+            </form>
+        </div>
+    </div>
+    
+    <div id="driverModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('driverModal')">&times;</span>
+            <h3 id="driverModalTitle">Novo Motorista</h3>
+            <form id="driverForm">
+                <input type="hidden" id="driverId">
+
+                <!-- Foto do Motorista -->
+                <div class="form-group" style="text-align: center; margin-bottom: 20px;">
+                    <label>Foto do Motorista:</label>
+                    <div id="driverPhotoPreview" style="width: 120px; height: 120px; margin: 10px auto; border: 2px dashed #ccc; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #f5f5f5;">
+                        <span style="color: #999;">Sem foto</span>
+                    </div>
+                    <input type="file" id="driverPhoto" accept="image/*" onchange="previewDriverPhoto(event)" style="display: none;">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('driverPhoto').click()">📷 Selecionar Foto</button>
+                    <button type="button" class="btn btn-danger" onclick="removeDriverPhoto()" id="removeDriverPhotoBtn" style="display: none;">🗑️ Remover</button>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Nome Completo:</label>
+                        <input type="text" id="driverName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>CNH:</label>
+                        <input type="text" id="driverCnh" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Validade CNH:</label>
+                        <input type="date" id="driverCnhExpiry" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Telefone:</label>
+                        <input type="tel" id="driverPhone" required>
+                    </div>
+                </div>
+
+                <!-- Dados de Acesso ao Sistema -->
+                <div style="border-top: 2px solid #e0e0e0; margin: 20px 0; padding-top: 20px;">
+                    <h4 style="margin-bottom: 15px; color: #333;">🔐 Dados de Acesso ao Sistema</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Email:</label>
+                            <input type="email" id="driverEmail" required placeholder="exemplo@email.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Senha:</label>
+                            <input type="password" id="driverPassword" required minlength="6" placeholder="Mínimo 6 caracteres">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Confirmar Senha:</label>
+                        <input type="password" id="driverPasswordConfirm" required minlength="6" placeholder="Digite a senha novamente">
+                    </div>
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        ℹ️ Essas credenciais serão usadas pelo motorista para acessar o sistema
+                    </small>
+                </div>
+
+                <button type="submit" class="btn btn-success">Salvar</button>
+            </form>
+        </div>
+    </div>
+    
+    <div id="usageModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('usageModal')">&times;</span>
+            <h3>Novo Registro de Uso</h3>
+            <form id="usageForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Veículo:</label>
+                        <select id="usageVehicle" required onchange="updateKmMin()">
+                            <option value="">Selecione o veículo</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Motorista:</label>
+                        <select id="usageDriver" required>
+                            <option value="">Selecione o motorista</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Data/Hora Saída:</label>
+                        <input type="datetime-local" id="usageDeparture" required>
+                    </div>
+                    <div class="form-group">
+                        <label>KM Saída:</label>
+                        <input type="number" id="usageKmDeparture" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Destino:</label>
+                    <select id="usageDestination" required>
+                        <option value="">Selecione o destino</option>
+                    </select>
+                    <small style="display: block; margin-top: 5px; color: #666;">
+                        💡 Não encontrou o destino? <a href="#destinos" onclick="showSection('destinos'); closeModal('usageModal');" style="color: #667eea;">Cadastre aqui</a>
+                    </small>
+                </div>
+
+                <!-- Toggle de Intercorrência -->
+                <div class="form-group incident-toggle-group">
+                    <label class="incident-toggle-label">
+                        <input type="checkbox" id="usageHasIncident" onchange="toggleIncidentFields()" class="incident-checkbox">
+                        <span class="incident-toggle-text">
+                            <span class="incident-icon">⚠️</span>
+                            Registrar Intercorrência
+                        </span>
+                    </label>
+                </div>
+
+                <!-- Campos condicionais de intercorrência -->
+                <div id="incidentFields" class="incident-fields-container" style="display: none;">
+                    <div class="form-group">
+                        <label>Observações da Intercorrência:</label>
+                        <textarea id="usageIncidentNotes" rows="4" placeholder="Descreva o que aconteceu durante a viagem..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Anexar Imagem da Intercorrência:</label>
+                        <input type="file" id="usageIncidentPhoto" accept="image/*">
+                        <small class="file-help-text">
+                            📷 Formatos aceitos: JPG, PNG, GIF (máximo 5MB)
+                        </small>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-success">Salvar</button>
+            </form>
+        </div>
+    </div>
+    
+    <div id="maintenanceModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('maintenanceModal')">&times;</span>
+            <h3 id="maintenanceModalTitle">Nova Manutenção</h3>
+            <form id="maintenanceForm">
+                <input type="hidden" id="maintenanceId">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Veículo:</label>
+                        <select id="maintenanceVehicle" required>
+                            <option value="">Selecione o veículo</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo:</label>
+                        <select id="maintenanceType" required>
+                            <option value="revisão">Revisão</option>
+                            <option value="troca-oleo">Troca de Óleo</option>
+                            <option value="pneus">Troca de Pneus</option>
+                            <option value="freios">Freios</option>
+                            <option value="outros">Outros</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Data:</label>
+                        <input type="date" id="maintenanceDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>KM:</label>
+                        <input type="number" id="maintenanceKm" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Valor:</label>
+                    <input type="number" step="0.01" id="maintenanceValue" required>
+                </div>
+                <div class="form-group">
+                    <label>Descrição:</label>
+                    <textarea id="maintenanceDescription" rows="3" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-success">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="destinationModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('destinationModal')">&times;</span>
+            <h3 id="destinationModalTitle">Novo Destino</h3>
+            <form id="destinationForm">
+                <input type="hidden" id="destinationId">
+                <div class="form-group">
+                    <label>Nome do Destino:</label>
+                    <input type="text" id="destinationName" required placeholder="Ex: Centro - Matriz, Aeroporto, Filial Norte">
+                </div>
+                <div class="form-group">
+                    <label>Distância (KM):</label>
+                    <input type="number" id="destinationDistance" required min="0" step="0.1" placeholder="Distância em quilômetros">
+                </div>
+                <button type="submit" class="btn btn-success">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/api.js?v=2"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/gps-tracking.js?v=23"></script>
+    <script>
+        // Inicializar sistema após carregamento
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                // Aguardar carregamento do usuário via API
+                const user = await loadCurrentUser();
+
+                if (!user) {
+                    console.log('Usuário não autenticado');
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                console.log('Usuário carregado:', user);
+
+                // Atualizar mensagem de boas-vindas
+                const welcomeEl = document.getElementById('welcomeMessage');
+                if (welcomeEl) {
+                    welcomeEl.textContent = `Bem-vindo, ${user.name || user.username}`;
+                }
+
+                // Inicializar sistema (já carrega todos os dados da API)
+                await initSystem();
+
+                // Inicializar ícones Lucide
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+
+            } catch (error) {
+                console.error('Erro ao inicializar dashboard:', error);
+                alert('Erro ao carregar dashboard. Redirecionando para login...');
+                window.location.href = 'index.html';
+            }
+        });
+    </script>
+</body>
+</html>

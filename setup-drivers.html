@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Drivers - CarControl</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        .success { color: #4caf50; }
+        .info { color: #2196f3; }
+        button {
+            padding: 10px 20px;
+            margin: 10px 0;
+            cursor: pointer;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        pre {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            overflow: auto;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Setup de Drivers - CarControl</h1>
+
+    <button onclick="setupDrivers()">Configurar Drivers Padrão</button>
+    <button onclick="checkCurrentData()">Verificar Dados Atuais</button>
+    <button onclick="clearAllData()">Limpar Todos os Dados</button>
+
+    <div id="result"></div>
+
+    <script>
+        function setupDrivers() {
+            // Drivers que correspondem aos usuários em auth.js
+            const drivers = [
+                {
+                    id: 1,
+                    name: 'João Silva Santos',
+                    email: 'joao.silva@empresa.com', // IMPORTANTE: mesmo email do usuário
+                    cpf: '123.456.789-00',
+                    cnh: 'ABC1234567',
+                    phone: '(11) 98765-4321',
+                    status: 'disponivel',
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: 2,
+                    name: 'Maria Oliveira',
+                    email: 'maria.oliveira@empresa.com', // IMPORTANTE: mesmo email do usuário
+                    cpf: '234.567.890-11',
+                    cnh: 'DEF2345678',
+                    phone: '(11) 98765-4322',
+                    status: 'disponivel',
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: 3,
+                    name: 'Pedro Costa',
+                    email: 'pedro.costa@empresa.com', // IMPORTANTE: mesmo email do usuário
+                    cpf: '345.678.901-22',
+                    cnh: 'GHI3456789',
+                    phone: '(11) 98765-4323',
+                    status: 'disponivel',
+                    createdAt: new Date().toISOString()
+                }
+            ];
+
+            // Veículos para testes
+            const vehicles = [
+                {
+                    id: 1,
+                    brand: 'Fiat',
+                    model: 'Uno',
+                    plate: 'ABC-1234',
+                    year: 2020,
+                    color: 'Branco',
+                    status: 'disponivel',
+                    currentKm: 45000,
+                    fuelType: 'Flex'
+                },
+                {
+                    id: 2,
+                    brand: 'Volkswagen',
+                    model: 'Gol',
+                    plate: 'XYZ-5678',
+                    year: 2021,
+                    color: 'Prata',
+                    status: 'disponivel',
+                    currentKm: 32000,
+                    fuelType: 'Flex'
+                },
+                {
+                    id: 3,
+                    brand: 'Chevrolet',
+                    model: 'Onix',
+                    plate: 'DEF-9012',
+                    year: 2022,
+                    color: 'Preto',
+                    status: 'disponivel',
+                    currentKm: 18000,
+                    fuelType: 'Flex'
+                }
+            ];
+
+            // Destinos padrão
+            const destinations = [
+                { id: 1, name: 'Centro da Cidade', distanceKm: 15 },
+                { id: 2, name: 'Aeroporto Internacional', distanceKm: 45 },
+                { id: 3, name: 'Shopping Center', distanceKm: 8 },
+                { id: 4, name: 'Filial Norte', distanceKm: 25 },
+                { id: 5, name: 'Filial Sul', distanceKm: 30 }
+            ];
+
+            // Salvar no localStorage
+            localStorage.setItem('drivers', JSON.stringify(drivers));
+            localStorage.setItem('vehicles', JSON.stringify(vehicles));
+            localStorage.setItem('destinations', JSON.stringify(destinations));
+
+            // Se não existir, criar array vazio de registros
+            if (!localStorage.getItem('usageRecords')) {
+                localStorage.setItem('usageRecords', JSON.stringify([]));
+            }
+
+            const result = document.getElementById('result');
+            result.innerHTML = `
+                <h2 class="success">✅ Drivers Configurados com Sucesso!</h2>
+                <pre>${JSON.stringify(drivers, null, 2)}</pre>
+                <h3 class="info">Veículos Adicionados:</h3>
+                <pre>${JSON.stringify(vehicles, null, 2)}</pre>
+                <h3 class="info">Destinos Adicionados:</h3>
+                <pre>${JSON.stringify(destinations, null, 2)}</pre>
+                <p class="success">Agora você pode fazer login com joao.silva/motorista123</p>
+            `;
+        }
+
+        function checkCurrentData() {
+            const drivers = localStorage.getItem('drivers');
+            const vehicles = localStorage.getItem('vehicles');
+            const destinations = localStorage.getItem('destinations');
+            const usageRecords = localStorage.getItem('usageRecords');
+            const currentUser = localStorage.getItem('currentUser');
+
+            const result = document.getElementById('result');
+            result.innerHTML = `
+                <h2>📊 Dados Atuais no LocalStorage</h2>
+                <h3>Drivers:</h3>
+                <pre>${drivers ? JSON.stringify(JSON.parse(drivers), null, 2) : 'Nenhum driver cadastrado'}</pre>
+                <h3>Veículos:</h3>
+                <pre>${vehicles ? JSON.stringify(JSON.parse(vehicles), null, 2) : 'Nenhum veículo cadastrado'}</pre>
+                <h3>Destinos:</h3>
+                <pre>${destinations ? JSON.stringify(JSON.parse(destinations), null, 2) : 'Nenhum destino cadastrado'}</pre>
+                <h3>Registros de Uso:</h3>
+                <pre>${usageRecords ? `${JSON.parse(usageRecords).length} registros` : 'Nenhum registro'}</pre>
+                <h3>Usuário Atual:</h3>
+                <pre>${currentUser ? JSON.stringify(JSON.parse(currentUser), null, 2) : 'Nenhum usuário logado'}</pre>
+            `;
+        }
+
+        function clearAllData() {
+            if (confirm('Tem certeza? Isso apagará todos os dados do sistema!')) {
+                localStorage.removeItem('drivers');
+                localStorage.removeItem('vehicles');
+                localStorage.removeItem('destinations');
+                localStorage.removeItem('usageRecords');
+                localStorage.removeItem('currentUser');
+
+                const result = document.getElementById('result');
+                result.innerHTML = '<h2 class="success">✅ Todos os dados foram limpos!</h2>';
+            }
+        }
+
+        // Checar dados ao carregar
+        window.addEventListener('DOMContentLoaded', function() {
+            checkCurrentData();
+        });
+    </script>
+</body>
+</html>

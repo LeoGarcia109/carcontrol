@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CarControl - Motorista</title>
+    <link rel="stylesheet" href="css/mobile-driver.css?v=20251107-fix">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Background Gradient -->
+    <div class="background-gradient"></div>
+
+    <!-- Modern Glass Header -->
+    <header class="mobile-header">
+        <div class="header-content">
+            <div class="user-info">
+                <div class="user-avatar">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M4 20C4 17.7909 7.58172 16 12 16C16.4183 16 20 17.7909 20 20V21H4V20Z" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                </div>
+                <div class="user-details">
+                    <span class="user-greeting">Bem-vindo</span>
+                    <span class="user-name" id="driverName">Motorista</span>
+                </div>
+            </div>
+
+            <!-- Ações do Header: GPS + Logout agrupados à direita -->
+            <div class="header-actions">
+                <!-- GPS Indicator -->
+                <div id="gpsIndicator" class="gps-indicator inactive">
+                    <svg width="16" height="16" fill="currentColor">
+                        <circle cx="8" cy="8" r="3" fill="#94a3b8"/>
+                        <path d="M8 0v3m0 10v3M0 8h3m10 0h3" stroke="#94a3b8" stroke-width="1"/>
+                    </svg>
+                    <span>GPS Inativo</span>
+                </div>
+
+                <button class="logout-btn" onclick="logout()" aria-label="Sair">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M16 17L21 12L16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Modern Stats Cards -->
+        <div class="stats-cards">
+            <div class="stat-card glass-card">
+                <div class="stat-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 7V12C2 16.5 4.5 20.74 8 22C9.05 21.75 10.05 21.32 11 20.77C11.95 21.32 12.95 21.75 14 22C17.5 20.74 20 16.5 20 12V7L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value" id="statActiveTrips">0</div>
+                    <div class="stat-label">Rotas Ativas</div>
+                </div>
+            </div>
+
+            <div class="stat-card glass-card">
+                <div class="stat-icon completed">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 11L12 14L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M21 12V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value" id="statCompletedTrips">0</div>
+                    <div class="stat-label">Concluídas</div>
+                </div>
+            </div>
+
+            <div class="stat-card glass-card">
+                <div class="stat-icon pending">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                        <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value" id="statPendingApproval">0</div>
+                    <div class="stat-label">Pendentes</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modern Filter Section -->
+        <div class="filters-section">
+            <h3 class="section-title">Minhas Rotas</h3>
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-filter="todas" onclick="filterRoutes('todas')">
+                    Todas
+                </button>
+                <button class="filter-btn" data-filter="em_uso" onclick="filterRoutes('em_uso')">
+                    Ativas
+                </button>
+                <button class="filter-btn" data-filter="finalizado" onclick="filterRoutes('finalizado')">
+                    Concluídas
+                </button>
+                <button class="filter-btn" data-filter="pendente" onclick="filterRoutes('pendente')">
+                    Pendentes
+                </button>
+            </div>
+        </div>
+
+        <!-- Routes List -->
+        <div class="routes-container" id="routesContainer">
+            <!-- Routes will be dynamically loaded here -->
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState" style="display: none;">
+            <div class="empty-icon">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19 9L20 10M4 10L5 9L4 10ZM13 18H11H13ZM3 18L2.4 16.2C2.15769 15.4692 2 14.6 2 13.71V12.5C2 8.5 3 5.5 8 3L12 2L16 3C21 5.5 22 8.5 22 12.5V13.71C22 14.6 21.8423 15.4692 21.6 16.2L21 18L3 18Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+                    <path d="M7 18L7 22M17 18V22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>
+                </svg>
+            </div>
+            <h3>Nenhuma rota encontrada</h3>
+            <p>Você ainda não possui rotas cadastradas</p>
+            <button class="btn-primary" onclick="openNewRouteModal()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                Criar Primeira Rota
+            </button>
+        </div>
+    </main>
+
+    <!-- Modern Floating Action Button -->
+    <button class="fab" onclick="openNewRouteModal()" aria-label="Nova Rota">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <span class="fab-text">Nova Rota</span>
+    </button>
+
+    <!-- Modal Nova Rota -->
+    <div id="newRouteModal" class="modal">
+        <div class="modal-overlay" onclick="closeNewRouteModal()"></div>
+        <div class="modal-content glass-modal">
+            <div class="modal-header">
+                <h3>Nova Rota</h3>
+                <button class="close-btn" onclick="closeNewRouteModal()" aria-label="Fechar">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <form id="newRouteForm">
+                <div class="form-group">
+                    <label>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19 9L20 10M4 10L5 9L4 10ZM13 18H11H13ZM3 18L2.4 16.2C2.15769 15.4692 2 14.6 2 13.71V12.5C2 8.5 3 5.5 8 3L12 2L16 3C21 5.5 22 8.5 22 12.5V13.71C22 14.6 21.8423 15.4692 21.6 16.2L21 18L3 18Z" stroke="currentColor" stroke-width="1.5"/>
+                        </svg>
+                        Veículo
+                    </label>
+                    <select id="routeVehicle" required class="form-input">
+                        <option value="">Selecione o veículo</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2C7.58172 2 4 5.58172 4 10C4 14.4183 12 22 12 22C12 22 20 14.4183 20 10C20 5.58172 16.4183 2 12 2Z" stroke="currentColor" stroke-width="1.5"/>
+                            <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="1.5"/>
+                        </svg>
+                        Destino
+                    </label>
+                    <select id="routeDestination" required class="form-input">
+                        <option value="">Selecione o destino</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                            <path d="M8 12H16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        KM Atual
+                    </label>
+                    <input type="number" id="routeKm" required min="0" placeholder="Digite a quilometragem atual" class="form-input">
+                    <small class="form-helper">Informe a quilometragem atual do veículo</small>
+                </div>
+
+                <!-- Toggle Intercorrência / Observações -->
+                <div class="form-group">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                        <input type="checkbox" id="routeHasIncident" style="width:18px; height:18px;">
+                        Adicionar observações/intercorrência
+                    </label>
+                </div>
+
+                <!-- Seção Intercorrência / Observações (oculta por padrão) -->
+                <div id="incidentSection" style="display:none; gap:12px;">
+                    <div class="form-group">
+                        <label>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 19.5V6.8C4 5.80589 4.80589 5 5.8 5H12.2C12.9712 5 13.6 5.62881 13.6 6.4V7.8H18.2C18.9712 7.8 19.6 8.42881 19.6 9.2V19.5" stroke="currentColor" stroke-width="1.5"/>
+                                <path d="M8 11H16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M8 15H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            Observações
+                        </label>
+                        <textarea id="routeNotes" class="form-input" rows="3" placeholder="Descreva a intercorrência ou observações"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="3" y="4" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                                <path d="M10 11L12 13L16 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            Foto (opcional)
+                        </label>
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <input type="file" id="routeIncidentPhoto" accept="image/*" capture="environment">
+                            <button type="button" id="btnRemoveIncidentPhoto" class="btn btn-secondary" style="display:none;" onclick="removeIncidentPhoto()">Remover</button>
+                        </div>
+                        <div id="incidentPhotoPreview" style="margin-top:8px; width:100%; max-width:320px; aspect-ratio:16/9; border:1px dashed #444; border-radius:8px; display:none; align-items:center; justify-content:center; overflow:hidden;"></div>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M12 8V12M12 16H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <div class="info-text">
+                        <strong>Atenção:</strong> A data e hora serão registradas automaticamente no momento da abertura da rota.
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-submit">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M5 12L3 21L12 18L21 21L19 12M5 12L12 2L19 12M5 12L12 18L19 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Iniciar Rota
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Finalizar Rota -->
+    <div id="finalizeRouteModal" class="modal">
+        <div class="modal-overlay" onclick="closeFinalizeRouteModal()"></div>
+        <div class="modal-content glass-modal">
+            <div class="modal-header">
+                <h3>Finalizar Rota</h3>
+                <button class="close-btn" onclick="closeFinalizeRouteModal()" aria-label="Fechar">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <form id="finalizeRouteForm">
+                <input type="hidden" id="finalizeRouteId">
+
+                <div class="route-summary" id="routeSummary">
+                    <!-- Route details will be shown here -->
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                            <path d="M8 12H16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        KM Final
+                    </label>
+                    <input type="number" id="routeKmFinal" required min="0" placeholder="Digite a quilometragem final" class="form-input">
+                    <small class="form-helper">Informe a quilometragem no retorno</small>
+                </div>
+
+                <div class="info-card warning">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 9V13M12 17H12.01M4.93 4.93L19.07 19.07M12 2L2 12L12 22L22 12L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    <div class="info-text">
+                        <strong>Importante:</strong> Após finalizar, a rota ficará pendente de aprovação do administrador.
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-submit btn-danger">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M5 13L9 17L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Finalizar Rota
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/mobile-driver.js?v=17"></script>
+</body>
+</html>

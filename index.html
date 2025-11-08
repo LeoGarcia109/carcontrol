@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarControl - Login</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <div class="login-header">
+                <h1>CarControl</h1>
+                <p>Sistema de Gestão de Frota</p>
+            </div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" placeholder="Digite seu email" autocomplete="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Senha</label>
+                    <input type="password" id="password" name="password" placeholder="Digite sua senha" autocomplete="current-password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <span>Entrar no Sistema</span>
+                    <span class="btn-icon">→</span>
+                </button>
+            </form>
+            <div id="errorMessage" class="error-message"></div>
+            <div class="login-footer">
+                <p><strong>Credenciais de Acesso:</strong></p>
+                <p>👨‍💼 Admin: <code>admin@carcontrol.com</code> / <code>admin123</code></p>
+            </div>
+        </div>
+    </div>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+</body>
+</html>

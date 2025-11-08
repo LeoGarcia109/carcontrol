@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migração de Dados - CarControl</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .warning h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .info-box h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .stat-card .label {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            width: 100%;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-bar {
+            background: #e0e0e0;
+            border-radius: 10px;
+            height: 20px;
+            overflow: hidden;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-bar.active {
+            display: block;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .log {
+            background: #1e1e1e;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 13px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .log.active {
+            display: block;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+        }
+
+        .log-success { color: #00ff00; }
+        .log-error { color: #ff0000; }
+        .log-warning { color: #ffff00; }
+        .log-info { color: #00ffff; }
+
+        .result {
+            background: #d4edda;
+            border: 1px solid #28a745;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .result.active {
+            display: block;
+        }
+
+        .result h3 {
+            color: #155724;
+            margin-bottom: 15px;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+
+        .result.error h3 {
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔄 Migração de Dados</h1>
+            <p>localStorage → MySQL</p>
+        </header>
+
+        <div class="content">
+            <div class="warning">
+                <h3>⚠️ ATENÇÃO</h3>
+                <ul style="margin-left: 20px;">
+                    <li>Certifique-se que a API está rodando (http://localhost:5000)</li>
+                    <li>Faça backup dos dados antes de migrar</li>
+                    <li>A migração pode demorar alguns minutos</li>
+                    <li>Não feche esta página durante a migração</li>
+                </ul>
+            </div>
+
+            <div class="info-box">
+                <h3>📊 Dados Disponíveis no localStorage</h3>
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <div class="label">Usuários</div>
+                        <div class="value" id="usersCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Motoristas</div>
+                        <div class="value" id="driversCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Veículos</div>
+                        <div class="value" id="vehiclesCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Registros de Uso</div>
+                        <div class="value" id="usageCount">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn" id="migrateBtn" onclick="startMigration()">
+                🚀 Iniciar Migração
+            </button>
+
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill">0%</div>
+            </div>
+
+            <div class="log" id="log"></div>
+
+            <div class="result" id="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000';
+        let migrationStats = {
+            users: { total: 0, success: 0, failed: 0 },
+            drivers: { total: 0, success: 0, failed: 0 },
+            vehicles: { total: 0, success: 0, failed: 0 },
+            usage: { total: 0, success: 0, failed: 0 },
+            maintenance: { total: 0, success: 0, failed: 0 },
+            destinations: { total: 0, success: 0, failed: 0 }
+        };
+
+        // Carregar estatísticas ao iniciar
+        window.onload = () => {
+            loadStats();
+        };
+
+        function loadStats() {
+            const users = JSON.parse(localStorage.getItem('appUsers') || '[]');
+            const drivers = JSON.parse(localStorage.getItem('drivers') || '[]');
+            const vehicles = JSON.parse(localStorage.getItem('vehicles') || '[]');
+            const usage = JSON.parse(localStorage.getItem('usageRecords') || '[]');
+
+            document.getElementById('usersCount').textContent = users.length;
+            document.getElementById('driversCount').textContent = drivers.length;
+            document.getElementById('vehiclesCount').textContent = vehicles.length;
+            document.getElementById('usageCount').textContent = usage.length;
+
+            if (users.length === 0 && drivers.length === 0 && vehicles.length === 0) {
+                log('⚠️ Nenhum dado encontrado no localStorage!', 'warning');
+            }
+        }
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            logDiv.classList.add('active');
+
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateProgress(current, total) {
+            const percent = Math.round((current / total) * 100);
+            const progressBar = document.getElementById('progressBar');
+            const progressFill = document.getElementById('progressFill');
+
+            progressBar.classList.add('active');
+            progressFill.style.width = percent + '%';
+            progressFill.textContent = percent + '%';
+        }
+
+        async function startMigration() {
+            const btn = document.getElementById('migrateBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Migrando...';
+
+            document.getElementById('log').innerHTML = '';
+            document.getElementById('result').classList.remove('active');
+
+            log('🚀 Iniciando migração...', 'info');
+
+            try {
+                // 1. Fazer login como admin
+                log('🔐 Fazendo login...', 'info');
+                const loginResponse = await fetch(API_URL + '/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'admin123'
+                    })
+                });
+
+                if (!loginResponse.ok) {
+                    throw new Error('Falha no login. Verifique se a API está rodando.');
+                }
+
+                log('✅ Login realizado com sucesso', 'success');
+
+                // 2. Migrar motoristas
+                await migrateDrivers();
+
+                // 3. Migrar veículos
+                await migrateVehicles();
+
+                // 4. Migrar uso de veículos
+                await migrateUsage();
+
+                // 5. Migrar manutenção
+                await migrateMaintenance();
+
+                // Mostrar resultado final
+                showResult(true);
+
+            } catch (error) {
+                log(`❌ Erro na migração: ${error.message}`, 'error');
+                showResult(false, error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔄 Migrar Novamente';
+            }
+        }
+
+        async function migrateDrivers() {
+            log('👨‍✈️ Migrando motoristas...', 'info');
+            const drivers = JSON.parse(localStorage.getItem('drivers') || '[]');
+
+            if (drivers.length === 0) {
+                log('ℹ️ Nenhum motorista para migrar', 'info');
+                return;
+            }
+
+            migrationStats.drivers.total = drivers.length;
+            let completed = 0;
+
+            for (const driver of drivers) {
+                try {
+                    // Converter formato do localStorage para API
+                    const driverData = {
+                        name: driver.name,
+                        cnh: driver.cnh,
+                        cnhExpiry: driver.cnhExpiry,
+                        phone: driver.phone,
+                        email: driver.email,
+                        password: 'senha123', // Senha padrão
+                        photo: driver.photo || null,
+                        categoria_cnh: 'B',
+                        cpf: null,
+                        rg: null,
+                        endereco: null,
+                        data_nascimento: null,
+                        estado_civil: null,
+                        observacoes: null
+                    };
+
+                    const response = await fetch(API_URL + '/drivers', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify(driverData)
+                    });
+
+                    if (response.ok) {
+                        migrationStats.drivers.success++;
+                        log(`✅ Motorista "${driver.name}" migrado`, 'success');
+                    } else {
+                        const error = await response.json();
+                        migrationStats.drivers.failed++;
+                        log(`⚠️ Falha ao migrar "${driver.name}": ${error.error}`, 'warning');
+                    }
+
+                } catch (error) {
+                    migrationStats.drivers.failed++;
+                    log(`❌ Erro ao migrar "${driver.name}": ${error.message}`, 'error');
+                }
+
+                completed++;
+                updateProgress(completed, drivers.length);
+                await sleep(100); // Pequeno delay para não sobrecarregar
+            }
+
+            log(`✅ Migração de motoristas concluída: ${migrationStats.drivers.success}/${migrationStats.drivers.total}`, 'success');
+        }
+
+        async function migrateVehicles() {
+            log('🚗 Migrando veículos...', 'info');
+            const vehicles = JSON.parse(localStorage.getItem('vehicles') || '[]');
+
+            if (vehicles.length === 0) {
+                log('ℹ️ Nenhum veículo para migrar', 'info');
+                return;
+            }
+
+            migrationStats.vehicles.total = vehicles.length;
+            let completed = 0;
+
+            for (const vehicle of vehicles) {
+                try {
+                    const vehicleData = {
+                        plate: vehicle.plate,
+                        brand: vehicle.brand,
+                        model: vehicle.model,
+                        year: vehicle.year,
+                        color: vehicle.color || '',
+                        fuel: vehicle.fuel || 'gasolina',
+                        currentKm: vehicle.currentKm || 0,
+                        lastMaintenanceKm: vehicle.lastMaintenanceKm || 0,
+                        status: vehicle.status || 'disponivel',
+                        photo: vehicle.photo || null,
+                        notes: vehicle.notes || '',
+                        chassi: null,
+                        renavam: null
+                    };
+
+                    const response = await fetch(API_URL + '/vehicles', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify(vehicleData)
+                    });
+
+                    if (response.ok) {
+                        migrationStats.vehicles.success++;
+                        log(`✅ Veículo "${vehicle.plate}" migrado`, 'success');
+                    } else {
+                        const error = await response.json();
+                        migrationStats.vehicles.failed++;
+                        log(`⚠️ Falha ao migrar "${vehicle.plate}": ${error.error}`, 'warning');
+                    }
+
+                } catch (error) {
+                    migrationStats.vehicles.failed++;
+                    log(`❌ Erro ao migrar "${vehicle.plate}": ${error.message}`, 'error');
+                }
+
+                completed++;
+                updateProgress(completed, vehicles.length);
+                await sleep(100);
+            }
+
+            log(`✅ Migração de veículos concluída: ${migrationStats.vehicles.success}/${migrationStats.vehicles.total}`, 'success');
+        }
+
+        async function migrateUsage() {
+            log('📝 Migrando registros de uso...', 'info');
+            // Implementação similar aos motoristas e veículos
+            log('ℹ️ Migração de uso de veículos será implementada manualmente', 'info');
+        }
+
+        async function migrateMaintenance() {
+            log('🔧 Migrando manutenções...', 'info');
+            // Implementação similar
+            log('ℹ️ Migração de manutenção será implementada manualmente', 'info');
+        }
+
+        function showResult(success, errorMessage = null) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.classList.add('active');
+
+            if (success) {
+                resultDiv.className = 'result active';
+                resultDiv.innerHTML = `
+                    <h3>✅ Migração Concluída com Sucesso!</h3>
+                    <p><strong>Motoristas:</strong> ${migrationStats.drivers.success}/${migrationStats.drivers.total} migrados</p>
+                    <p><strong>Veículos:</strong> ${migrationStats.vehicles.success}/${migrationStats.vehicles.total} migrados</p>
+                    <p style="margin-top: 15px; color: #28a745;">
+                        Agora você pode usar o sistema com o banco de dados MySQL!
+                    </p>
+                `;
+            } else {
+                resultDiv.className = 'result active error';
+                resultDiv.innerHTML = `
+                    <h3>❌ Erro na Migração</h3>
+                    <p>${errorMessage}</p>
+                    <p style="margin-top: 10px;">
+                        Verifique se a API está rodando em http://localhost:5000
+                    </p>
+                `;
+            }
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    </script>
+</body>
+</html>

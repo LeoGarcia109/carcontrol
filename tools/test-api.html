@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarControl API - Tester</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 0;
+        }
+
+        .sidebar {
+            background: #f8f9fa;
+            border-right: 1px solid #e0e0e0;
+            padding: 20px;
+        }
+
+        .endpoint {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .endpoint:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+
+        .endpoint.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .endpoint .method {
+            font-weight: bold;
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+
+        .method.GET { background: #28a745; color: white; }
+        .method.POST { background: #007bff; color: white; }
+        .method.PUT { background: #ffc107; color: #333; }
+        .method.DELETE { background: #dc3545; color: white; }
+
+        .content {
+            padding: 30px;
+        }
+
+        .test-area {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .form-group textarea {
+            min-height: 150px;
+            font-size: 13px;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .response-area {
+            margin-top: 20px;
+        }
+
+        .response-header {
+            background: #333;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 6px 6px 0 0;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-200 { background: #28a745; }
+        .status-201 { background: #28a745; }
+        .status-400 { background: #ffc107; color: #333; }
+        .status-401 { background: #dc3545; }
+        .status-404 { background: #dc3545; }
+        .status-500 { background: #dc3545; }
+
+        .response-body {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 0 0 6px 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .auth-status {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .auth-status.logged-in {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .quick-login {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .quick-login h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .quick-login button {
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚗 CarControl API Tester</h1>
+            <p>Teste todos os endpoints da API</p>
+        </header>
+
+        <div class="main-content">
+            <div class="sidebar">
+                <h3 style="margin-bottom: 15px;">Endpoints</h3>
+
+                <div class="endpoint" onclick="selectEndpoint('auth-login')">
+                    <div class="method POST">POST</div>
+                    <div>/auth/login</div>
+                </div>
+
+                <div class="endpoint" onclick="selectEndpoint('auth-profile')">
+                    <div class="method GET">GET</div>
+                    <div>/auth/profile</div>
+                </div>
+
+                <div class="endpoint" onclick="selectEndpoint('drivers-list')">
+                    <div class="method GET">GET</div>
+                    <div>/drivers</div>
+                </div>
+
+                <div class="endpoint" onclick="selectEndpoint('drivers-create')">
+                    <div class="method POST">POST</div>
+                    <div>/drivers</div>
+                </div>
+
+                <div class="endpoint" onclick="selectEndpoint('vehicles-list')">
+                    <div class="method GET">GET</div>
+                    <div>/vehicles</div>
+                </div>
+
+                <div class="endpoint" onclick="selectEndpoint('vehicles-create')">
+                    <div class="method POST">POST</div>
+                    <div>/vehicles</div>
+                </div>
+
+                <div class="endpoint" onclick="selectEndpoint('usage-list')">
+                    <div class="method GET">GET</div>
+                    <div>/usage</div>
+                </div>
+
+                <div class="endpoint" onclick="selectEndpoint('dashboard-stats')">
+                    <div class="method GET">GET</div>
+                    <div>/dashboard/stats</div>
+                </div>
+            </div>
+
+            <div class="content">
+                <div class="auth-status" id="authStatus">
+                    <span>❌ Não autenticado</span>
+                    <button class="btn" onclick="logout()">Logout</button>
+                </div>
+
+                <div class="quick-login">
+                    <h3>🔐 Login Rápido</h3>
+                    <button class="btn" onclick="quickLogin('admin', 'admin123')">Login Admin</button>
+                    <button class="btn" onclick="quickLogin('usuario', 'user123')">Login Usuário</button>
+                </div>
+
+                <div class="test-area">
+                    <h2 id="endpointTitle">Selecione um endpoint</h2>
+                    <p id="endpointDescription"></p>
+
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label>URL:</label>
+                        <input type="text" id="apiUrl" value="http://localhost:5000" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Endpoint:</label>
+                        <input type="text" id="endpoint" value="/auth/login" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Método:</label>
+                        <input type="text" id="method" value="POST" readonly>
+                    </div>
+
+                    <div class="form-group" id="bodyGroup">
+                        <label>Body (JSON):</label>
+                        <textarea id="requestBody">{
+  "username": "admin",
+  "password": "admin123"
+}</textarea>
+                    </div>
+
+                    <button class="btn" onclick="sendRequest()">🚀 Enviar Requisição</button>
+                </div>
+
+                <div class="response-area" id="responseArea" style="display: none;">
+                    <div class="response-header">
+                        <span>Resposta</span>
+                        <span class="status-badge" id="statusBadge">200</span>
+                    </div>
+                    <pre class="response-body" id="responseBody"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000';
+
+        const endpoints = {
+            'auth-login': {
+                title: 'Login',
+                method: 'POST',
+                path: '/auth/login',
+                description: 'Autenticar usuário',
+                body: {
+                    username: 'admin',
+                    password: 'admin123'
+                }
+            },
+            'auth-profile': {
+                title: 'Perfil do Usuário',
+                method: 'GET',
+                path: '/auth/profile',
+                description: 'Obter perfil do usuário logado',
+                body: null
+            },
+            'drivers-list': {
+                title: 'Listar Motoristas',
+                method: 'GET',
+                path: '/drivers',
+                description: 'Buscar todos os motoristas',
+                body: null
+            },
+            'drivers-create': {
+                title: 'Criar Motorista',
+                method: 'POST',
+                path: '/drivers',
+                description: 'Cadastrar novo motorista',
+                body: {
+                    name: 'Leonardo Silva',
+                    cnh: '12345678901',
+                    cnhExpiry: '2026-12-31',
+                    phone: '(11) 99999-9999',
+                    email: 'leonardo@example.com',
+                    password: 'senha123',
+                    photo: null
+                }
+            },
+            'vehicles-list': {
+                title: 'Listar Veículos',
+                method: 'GET',
+                path: '/vehicles',
+                description: 'Buscar todos os veículos',
+                body: null
+            },
+            'vehicles-create': {
+                title: 'Criar Veículo',
+                method: 'POST',
+                path: '/vehicles',
+                description: 'Cadastrar novo veículo',
+                body: {
+                    plate: 'ABC-1234',
+                    brand: 'Fiat',
+                    model: 'Uno',
+                    year: 2020,
+                    color: 'Branco',
+                    fuel: 'gasolina',
+                    currentKm: 50000
+                }
+            },
+            'usage-list': {
+                title: 'Listar Usos',
+                method: 'GET',
+                path: '/usage',
+                description: 'Buscar registros de uso',
+                body: null
+            },
+            'dashboard-stats': {
+                title: 'Estatísticas',
+                method: 'GET',
+                path: '/dashboard/stats',
+                description: 'Obter estatísticas do sistema',
+                body: null
+            }
+        };
+
+        function selectEndpoint(key) {
+            const ep = endpoints[key];
+            if (!ep) return;
+
+            // Atualizar interface
+            document.querySelectorAll('.endpoint').forEach(el => el.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            document.getElementById('endpointTitle').textContent = ep.title;
+            document.getElementById('endpointDescription').textContent = ep.description;
+            document.getElementById('endpoint').value = ep.path;
+            document.getElementById('method').value = ep.method;
+
+            const bodyGroup = document.getElementById('bodyGroup');
+            if (ep.body) {
+                bodyGroup.style.display = 'block';
+                document.getElementById('requestBody').value = JSON.stringify(ep.body, null, 2);
+            } else {
+                bodyGroup.style.display = 'none';
+            }
+        }
+
+        async function sendRequest() {
+            const method = document.getElementById('method').value;
+            const endpoint = document.getElementById('endpoint').value;
+            const url = API_URL + endpoint;
+
+            const options = {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include'
+            };
+
+            if (method !== 'GET') {
+                const body = document.getElementById('requestBody').value;
+                if (body.trim()) {
+                    options.body = body;
+                }
+            }
+
+            try {
+                const response = await fetch(url, options);
+                const data = await response.json();
+
+                // Mostrar resposta
+                document.getElementById('responseArea').style.display = 'block';
+                document.getElementById('statusBadge').textContent = response.status;
+                document.getElementById('statusBadge').className = `status-badge status-${response.status}`;
+                document.getElementById('responseBody').textContent = JSON.stringify(data, null, 2);
+
+                // Atualizar status de autenticação
+                if (endpoint === '/auth/login' && data.success) {
+                    updateAuthStatus(true, data.user);
+                }
+
+            } catch (error) {
+                document.getElementById('responseArea').style.display = 'block';
+                document.getElementById('statusBadge').textContent = 'ERROR';
+                document.getElementById('statusBadge').className = 'status-badge status-500';
+                document.getElementById('responseBody').textContent = 'Erro: ' + error.message;
+            }
+        }
+
+        async function quickLogin(username, password) {
+            document.getElementById('requestBody').value = JSON.stringify({ username, password }, null, 2);
+            document.getElementById('endpoint').value = '/auth/login';
+            document.getElementById('method').value = 'POST';
+            await sendRequest();
+        }
+
+        async function logout() {
+            try {
+                await fetch(API_URL + '/auth/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                updateAuthStatus(false);
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        }
+
+        function updateAuthStatus(isLoggedIn, user = null) {
+            const authStatus = document.getElementById('authStatus');
+            if (isLoggedIn && user) {
+                authStatus.className = 'auth-status logged-in';
+                authStatus.innerHTML = `
+                    <span>✅ Logado como: ${user.name} (${user.role})</span>
+                    <button class="btn" onclick="logout()">Logout</button>
+                `;
+            } else {
+                authStatus.className = 'auth-status';
+                authStatus.innerHTML = `
+                    <span>❌ Não autenticado</span>
+                    <button class="btn" onclick="logout()">Logout</button>
+                `;
+            }
+        }
+
+        // Selecionar primeiro endpoint ao carregar
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelector('.endpoint').click();
+        });
+    </script>
+</body>
+</html>
