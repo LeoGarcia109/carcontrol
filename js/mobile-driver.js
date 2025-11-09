@@ -15,6 +15,11 @@ let currentUsageId = null;
 let lastGpsPosition = null;
 let lastGpsTimestamp = null;
 
+// Variáveis para modo offline
+let isOfflineMode = !navigator.onLine;
+let pendingCount = 0;
+let offlineIndicatorUpdater = null;
+
 // ===========================
 // FUNÇÕES GPS
 // ===========================
@@ -180,13 +185,33 @@ async function captureAndSendGPS(position, vehicleId) {
     }
 
     try {
-        // Enviar para o servidor
-        await apiSendGPS(gpsData);
-        console.log('GPS enviado:', {
-            lat: coords.latitude.toFixed(6),
-            lng: coords.longitude.toFixed(6),
-            accuracy: Math.round(coords.accuracy) + 'm'
-        });
+        // MODO OFFLINE: Salvar GPS no IndexedDB
+        if (isOfflineMode) {
+            await offlineDB.addGPSPoint(gpsData);
+            console.log('📴 GPS salvo offline:', {
+                lat: coords.latitude.toFixed(6),
+                lng: coords.longitude.toFixed(6),
+                accuracy: Math.round(coords.accuracy) + 'm'
+            });
+
+            // Atualizar contador de pendências
+            await updatePendingCount();
+        } else {
+            // MODO ONLINE: Tentar enviar para o servidor
+            try {
+                await apiSendGPS(gpsData);
+                console.log('📡 GPS enviado online:', {
+                    lat: coords.latitude.toFixed(6),
+                    lng: coords.longitude.toFixed(6),
+                    accuracy: Math.round(coords.accuracy) + 'm'
+                });
+            } catch (networkError) {
+                // Falha de rede, salvar offline como fallback
+                console.warn('⚠️ Falha de rede, salvando GPS offline');
+                await offlineDB.addGPSPoint(gpsData);
+                await updatePendingCount();
+            }
+        }
 
         lastGpsPosition = {
             latitude: coords.latitude,
@@ -198,7 +223,7 @@ async function captureAndSendGPS(position, vehicleId) {
         updateGPSIndicator(true);
 
     } catch (error) {
-        console.error('Erro ao enviar GPS:', error);
+        console.error('Erro ao processar GPS:', error);
         updateGPSIndicator(false);
     }
 }
@@ -331,8 +356,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
 
+    // Inicializar suporte offline ANTES de carregar dados
+    await initOfflineSupport();
+
     // Carregar dados da API (veículos, rotas, destinos)
     await loadDataFromAPI();
+
+    // Cachear dados carregados
+    await cacheCurrentData();
 
     // Resolver motorista atual preferindo a API (usa motorista_id da sessão)
     try {
@@ -864,8 +895,7 @@ async function createNewRoute() {
             incidentPhoto = await fileToDataURL(photoFile);
         }
 
-        // Enviar para API e criar registro de uso
-        const response = await apiCreateUsage({
+        const routeData = {
             vehicleId,
             driverId: currentDriver.id,
             departureTime: toSqlDateTime(new Date()),
@@ -873,10 +903,55 @@ async function createNewRoute() {
             destinationId,
             notes: notes || null,
             incidentPhoto: incidentPhoto || null
-        });
+        };
 
-        // Obter o ID da nova viagem criada
-        const newUsageId = response.data?.id || response.id;
+        let newUsageId = null;
+
+        // MODO OFFLINE: Salvar no IndexedDB
+        if (isOfflineMode) {
+            const tempId = await offlineDB.addPendingRoute(routeData);
+            newUsageId = `temp_${tempId}`; // ID temporário
+
+            console.log('📴 Rota criada offline com ID temporário:', newUsageId);
+            showToast('Rota criada em modo offline', 'info');
+
+            // Adicionar à lista local para exibição imediata
+            usageRecords.unshift({
+                id: tempId,
+                ...routeData,
+                status: 'em_uso',
+                approvalStatus: 'pendente',
+                offline: true,
+                tempId: tempId
+            });
+
+            await updatePendingCount();
+        } else {
+            // MODO ONLINE: Enviar para API
+            try {
+                const response = await apiCreateUsage(routeData);
+                newUsageId = response.data?.id || response.id;
+                console.log('📡 Rota criada online com ID:', newUsageId);
+                showToast('Rota iniciada com sucesso!');
+            } catch (error) {
+                // Fallback para offline se falhar
+                console.warn('⚠️ Falha ao criar rota online, salvando offline');
+                const tempId = await offlineDB.addPendingRoute(routeData);
+                newUsageId = `temp_${tempId}`;
+
+                usageRecords.unshift({
+                    id: tempId,
+                    ...routeData,
+                    status: 'em_uso',
+                    approvalStatus: 'pendente',
+                    offline: true,
+                    tempId: tempId
+                });
+
+                await updatePendingCount();
+                showToast('Rota salva offline, será sincronizada', 'warning');
+            }
+        }
 
         // Iniciar rastreamento GPS para esta viagem
         if (newUsageId) {
@@ -891,7 +966,9 @@ async function createNewRoute() {
         }
 
         // Atualizar dados da tela (sem reinicializar GPS)
-        await refreshUsageForDriver();
+        if (!isOfflineMode) {
+            await refreshUsageForDriver();
+        }
 
         // ⚠️ NÃO chamar loadDataFromAPI() pois ele reinicializa o sistema
         // e pode resetar o estado do GPS. GPS já está ativo.
@@ -1405,5 +1482,211 @@ async function apiCreateExpense(expenseData) {
     } catch (error) {
         console.error('API Error:', error);
         throw error;
+    }
+}
+
+// ===========================
+// OFFLINE SUPPORT FUNCTIONS
+// ===========================
+
+/**
+ * Atualizar contador de itens pendentes
+ */
+async function updatePendingCount() {
+    try {
+        const counts = await offlineDB.getPendingCount();
+        pendingCount = counts.total;
+
+        // Atualizar badge visual
+        updateOfflineBadge(counts);
+
+        return counts;
+    } catch (error) {
+        console.error('[Offline] Erro ao atualizar contador:', error);
+        return { total: 0 };
+    }
+}
+
+/**
+ * Atualizar badge de itens pendentes
+ */
+function updateOfflineBadge(counts) {
+    const badge = document.getElementById('offlinePendingBadge');
+    if (!badge) return;
+
+    if (counts.total > 0) {
+        badge.textContent = counts.total;
+        badge.style.display = 'flex';
+        badge.title = `${counts.routes} rotas, ${counts.gps} GPS, ${counts.expenses} despesas, ${counts.finalizations} finalizações`;
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+/**
+ * Atualizar indicador de status offline/online
+ */
+function updateOfflineIndicator(online) {
+    const indicator = document.getElementById('offlineIndicator');
+    if (!indicator) return;
+
+    if (online) {
+        indicator.classList.remove('offline');
+        indicator.classList.add('online');
+        indicator.innerHTML = `
+            <svg width="16" height="16" fill="currentColor">
+                <circle cx="8" cy="8" r="6" fill="#10b981"/>
+            </svg>
+            <span>Online</span>
+        `;
+    } else {
+        indicator.classList.remove('online');
+        indicator.classList.add('offline');
+        indicator.innerHTML = `
+            <svg width="16" height="16" fill="currentColor">
+                <circle cx="8" cy="8" r="6" fill="#ef4444"/>
+            </svg>
+            <span>Offline - ${pendingCount} pendentes</span>
+        `;
+    }
+}
+
+/**
+ * Inicializar suporte offline
+ */
+async function initOfflineSupport() {
+    console.log('[Offline] Initializing offline support...');
+
+    // Inicializar IndexedDB
+    try {
+        await offlineDB.init();
+        console.log('[Offline] IndexedDB initialized');
+    } catch (error) {
+        console.error('[Offline] Error initializing IndexedDB:', error);
+        return;
+    }
+
+    // Inicializar Sync Manager
+    try {
+        await syncManager.init();
+        console.log('[Offline] Sync Manager initialized');
+    } catch (error) {
+        console.error('[Offline] Error initializing Sync Manager:', error);
+    }
+
+    // Listeners para eventos de sincronização
+    syncManager.on('online', async () => {
+        console.log('[Offline] Device is online, updating UI');
+        isOfflineMode = false;
+        updateOfflineIndicator(true);
+
+        // Atualizar dados do cache
+        await loadCachedData();
+    });
+
+    syncManager.on('offline', () => {
+        console.log('[Offline] Device is offline, switching to offline mode');
+        isOfflineMode = true;
+        updateOfflineIndicator(false);
+    });
+
+    syncManager.on('syncCompleted', async (result) => {
+        console.log('[Offline] Sync completed:', result);
+        showToast(`${result.totalSynced} itens sincronizados`, 'success');
+
+        // Atualizar contador
+        await updatePendingCount();
+
+        // Recarregar dados
+        await refreshUsageForDriver();
+        loadStats();
+        loadRoutes();
+    });
+
+    syncManager.on('syncFailed', (error) => {
+        console.error('[Offline] Sync failed:', error);
+        showToast('Erro ao sincronizar dados', 'error');
+    });
+
+    // Atualizar contador inicial
+    await updatePendingCount();
+
+    // Atualizar indicador inicial
+    updateOfflineIndicator(navigator.onLine);
+
+    // Atualizar contador periodicamente
+    offlineIndicatorUpdater = setInterval(async () => {
+        await updatePendingCount();
+    }, 30000); // A cada 30 segundos
+
+    console.log('[Offline] Offline support initialized');
+}
+
+/**
+ * Carregar dados do cache quando offline
+ */
+async function loadCachedData() {
+    try {
+        // Carregar veículos do cache
+        const cachedVehicles = await offlineDB.getCachedVehicles();
+        if (cachedVehicles.length > 0) {
+            vehicles = cachedVehicles;
+            console.log('[Offline] Loaded vehicles from cache:', vehicles.length);
+        }
+
+        // Carregar destinos do cache
+        const cachedDestinations = await offlineDB.getCachedDestinations();
+        if (cachedDestinations.length > 0) {
+            destinations = cachedDestinations;
+            console.log('[Offline] Loaded destinations from cache:', destinations.length);
+        }
+
+        // Carregar rotas do cache
+        const cachedUsage = await offlineDB.getCachedUsageRecords(currentDriver.id);
+        if (cachedUsage.length > 0) {
+            usageRecords = cachedUsage.map(normalizeUsageRecord);
+            console.log('[Offline] Loaded usage records from cache:', usageRecords.length);
+        }
+
+        // Mesclar com dados pendentes
+        const pendingRoutes = await offlineDB.getPendingRoutes();
+        if (pendingRoutes.length > 0) {
+            usageRecords = [...pendingRoutes.map(r => ({
+                ...r,
+                id: r.tempId,
+                status: 'em_uso',
+                approvalStatus: 'pendente',
+                offline: true
+            })), ...usageRecords];
+        }
+
+    } catch (error) {
+        console.error('[Offline] Error loading cached data:', error);
+    }
+}
+
+/**
+ * Salvar dados no cache
+ */
+async function cacheCurrentData() {
+    try {
+        // Cache de veículos
+        if (vehicles.length > 0) {
+            await offlineDB.cacheVehicles(vehicles);
+        }
+
+        // Cache de destinos
+        if (destinations.length > 0) {
+            await offlineDB.cacheDestinations(destinations);
+        }
+
+        // Cache de rotas
+        if (usageRecords.length > 0) {
+            await offlineDB.cacheUsageRecords(usageRecords);
+        }
+
+        console.log('[Offline] Data cached successfully');
+    } catch (error) {
+        console.error('[Offline] Error caching data:', error);
     }
 }

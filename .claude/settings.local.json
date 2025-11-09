@@ -8,7 +8,8 @@
       "mcp__playwright__playwright_get_visible_text",
       "mcp__playwright__playwright_console_logs",
       "mcp__playwright__playwright_evaluate",
-      "mcp__playwright__playwright_close"
+      "mcp__playwright__playwright_close",
+      "mcp__github__get_file_contents"
     ],
     "deny": [],
     "ask": []

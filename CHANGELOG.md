@@ -5,6 +5,49 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [0.1.1-beta] - 2025-11-09
+
+### 🐛 Correções
+
+#### Interface GPS
+- **Marcadores GPS do Dashboard**: Implementada rotação de 8 cores vibrantes para diferenciação visual de veículos no mapa do dashboard principal
+- **Ícones Duplicados**: Removida bolinha verde pulsante redundante que aparecia sobreposta ao ícone SVG do carro
+- **Consistência Visual**: Aplicadas mesmas melhorias do módulo de rastreamento GPS ao mapa do card do dashboard
+
+#### Sistema de Gestão
+- **Filtro de Veículos**: Corrigido filtro ao criar nova viagem para mostrar apenas veículos com status "disponível"
+- **Viagem Travada**: Resolvido problema de viagem ID 27 (Luciana) que ficou presa em status "em_uso"
+- **Trigger GPS**: Corrigido erro `Row 37 was cut by GROUP_CONCAT()` aumentando `group_concat_max_len` para 100000
+
+#### UI/UX
+- **Indicadores Padronizados**: Unificado formato dos indicadores "online" e "GPS ativo" para formato pill (border-radius: 20px)
+- **Card Veículos Ativos**: Corrigida contagem incorreta que mostrava 2 veículos quando os 3 estavam disponíveis
+
+### 🔧 Melhorias Técnicas
+
+- Adicionado array `dashboardVehicleColors` com 8 cores para rotação de marcadores GPS
+- Modificada função `createDashboardVehicleIcon()` para suportar cores dinâmicas
+- Implementada lógica de rotação circular de cores em `updateDashboardMapMarkers()`
+- Otimização da query de veículos ativos para considerar apenas status correto
+
+### 📝 Arquivos Modificados
+
+- `js/main.js` - GPS dashboard markers com cores únicas (linhas 3846-3913)
+- `css/mobile-driver.css` - Indicador offline padronizado (linha 1073)
+- `dashboard.html` - Versão atualizada para v0.1.1 Beta
+
+### 🎨 Design System
+
+- **Cores dos Marcadores GPS**:
+  - Azul (#3b82f6)
+  - Vermelho (#ef4444)
+  - Verde (#10b981)
+  - Laranja (#f59e0b)
+  - Roxo (#8b5cf6)
+  - Rosa (#ec4899)
+  - Teal (#14b8a6)
+  - Laranja Escuro (#f97316)
+
 ## [0.1.0-beta] - 2025-01-08
 
 ### 🎉 Lançamento Inicial - CarControl v0.1.0 Beta

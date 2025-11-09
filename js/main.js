@@ -401,6 +401,10 @@ function showSection(sectionId) {
                 if (typeof initGPSMap === 'function' && !gpsMap) {
                     initGPSMap();
                     initRouteHistoryMap();
+                    // Carregar marcadores de destinos no mapa GPS
+                    if (typeof loadDestinationMarkers === 'function') {
+                        loadDestinationMarkers();
+                    }
                 }
                 if (typeof initGPSTabs === 'function') {
                     initGPSTabs();
@@ -2845,16 +2849,14 @@ function resetMaintenanceForm() {
 
 async function addDestination() {
     const name = document.getElementById('destinationName').value.trim();
-    const distance = parseFloat(document.getElementById('destinationDistance').value);
+    const address = document.getElementById('destinationAddress').value.trim();
+    const distance = parseFloat(document.getElementById('destinationDistance').value) || null;
+    const latitude = parseFloat(document.getElementById('destinationLatitude').value) || null;
+    const longitude = parseFloat(document.getElementById('destinationLongitude').value) || null;
 
     // Validações
     if (!name) {
         showAlert('Por favor, preencha o nome do destino', 'danger');
-        return;
-    }
-
-    if (!distance || distance <= 0) {
-        showAlert('Por favor, informe uma distância válida', 'danger');
         return;
     }
 
@@ -2865,8 +2867,10 @@ async function addDestination() {
     try {
         const destinationData = {
             name: name,
-            // API espera 'distance' (não 'distanceKm')
-            distance: distance
+            address: address,
+            distance: distance,
+            latitude: latitude,
+            longitude: longitude
         };
 
         let response;
@@ -2958,13 +2962,27 @@ function editDestination(id) {
     // Preencher o formulário
     document.getElementById('destinationId').value = destination.id;
     document.getElementById('destinationName').value = destination.name;
+    document.getElementById('destinationAddress').value = destination.address || '';
     document.getElementById('destinationDistance').value = destination.distanceKm ?? destination.distancia_km ?? destination.distance ?? '';
+    document.getElementById('destinationLatitude').value = destination.latitude || '';
+    document.getElementById('destinationLongitude').value = destination.longitude || '';
 
     // Mudar título do modal
     document.getElementById('destinationModalTitle').textContent = 'Editar Destino';
 
     // Abrir o modal
     openModal('destinationModal');
+
+    // Inicializar mapa com coordenadas do destino (se tiver)
+    if (destination.latitude && destination.longitude) {
+        setTimeout(() => {
+            initDestinationMap(destination.latitude, destination.longitude);
+        }, 300);
+    } else {
+        setTimeout(() => {
+            initDestinationMap();
+        }, 300);
+    }
 }
 
 async function deleteDestination(id) {
@@ -3000,8 +3018,22 @@ async function deleteDestination(id) {
 function resetDestinationForm() {
     document.getElementById('destinationId').value = '';
     document.getElementById('destinationName').value = '';
+    document.getElementById('destinationAddress').value = '';
     document.getElementById('destinationDistance').value = '';
+    document.getElementById('destinationLatitude').value = '';
+    document.getElementById('destinationLongitude').value = '';
     document.getElementById('destinationModalTitle').textContent = 'Novo Destino';
+
+    // Limpar mapa se existir
+    if (window.destinationMapInstance) {
+        window.destinationMapInstance.remove();
+        window.destinationMapInstance = null;
+    }
+
+    // Reinicializar mapa com coordenadas padrão quando abrir modal novo
+    setTimeout(() => {
+        initDestinationMap();
+    }, 300);
 }
 
 function populateDestinationSelects() {
@@ -3811,17 +3843,26 @@ function initDashboardGpsMap() {
     }
 }
 
+// Array de cores vibrantes para diferenciar veículos no dashboard
+const dashboardVehicleColors = [
+    '#3b82f6', // Azul
+    '#ef4444', // Vermelho
+    '#10b981', // Verde
+    '#f59e0b', // Laranja
+    '#8b5cf6', // Roxo
+    '#ec4899', // Rosa
+    '#14b8a6', // Teal
+    '#f97316'  // Laranja escuro
+];
+
 // Criar ícone customizado para veículo no dashboard
 function createDashboardVehicleIcon(color = '#3b82f6') {
     return L.divIcon({
         className: 'custom-vehicle-marker',
         html: `
-            <div style="position: relative;">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="${color}" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M5 11L6.5 6.5H17.5L19 11M5 11H3M5 11V17C5 17.5523 5.44772 18 6 18H7C7.55228 18 8 17.5523 8 17V16M19 11H21M19 11V17C19 17.5523 18.5523 18 18 18H17C16.4477 18 16 17.5523 16 17V16M8 16H16M8 16C8 17.1046 7.10457 18 6 18C4.89543 18 4 17.1046 4 16C4 14.8954 4.89543 14 6 14C7.10457 14 8 14.8954 8 16ZM16 16C16 17.1046 16.8954 18 18 18C19.1046 18 20 17.1046 20 16C20 14.8954 19.1046 14 18 14C16.8954 14 16 14.8954 16 16Z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <div style="position: absolute; top: -6px; right: -6px; width: 10px; height: 10px; background: #10b981; border: 2px solid white; border-radius: 50%; animation: pulse 2s infinite;"></div>
-            </div>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="${color}" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 11L6.5 6.5H17.5L19 11M5 11H3M5 11V17C5 17.5523 5.44772 18 6 18H7C7.55228 18 8 17.5523 8 17V16M19 11H21M19 11V17C19 17.5523 18.5523 18 18 18H17C16.4477 18 16 17.5523 16 17V16M8 16H16M8 16C8 17.1046 7.10457 18 6 18C4.89543 18 4 17.1046 4 16C4 14.8954 4.89543 14 6 14C7.10457 14 8 14.8954 8 16ZM16 16C16 17.1046 16.8954 18 18 18C19.1046 18 20 17.1046 20 16C20 14.8954 19.1046 14 18 14C16.8954 14 16 14.8954 16 16Z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
         `,
         iconSize: [32, 32],
         iconAnchor: [16, 32],
@@ -3853,7 +3894,7 @@ async function updateDashboardMapMarkers() {
         const validCoordinates = [];
 
         // Adicionar marcadores para veículos ativos com dados reais da API
-        vehicles.forEach(vehicle => {
+        vehicles.forEach((vehicle, index) => {
             const { vehicleId, plate, model, latitude, longitude, driverName } = vehicle;
 
             if (!latitude || !longitude) {
@@ -3864,8 +3905,11 @@ async function updateDashboardMapMarkers() {
             const position = [parseFloat(latitude), parseFloat(longitude)];
             validCoordinates.push(position);
 
+            // Selecionar cor baseada no índice do veículo (rotação circular)
+            const vehicleColor = dashboardVehicleColors[index % dashboardVehicleColors.length];
+
             const marker = L.marker(position, {
-                icon: createDashboardVehicleIcon('#3b82f6')
+                icon: createDashboardVehicleIcon(vehicleColor)
             }).addTo(dashboardGpsMap);
 
             // Popup com informações do veículo
@@ -4318,12 +4362,15 @@ function populateVehicleSelect() {
         const select = document.getElementById(selectId);
         if (select) {
             select.innerHTML = '<option value="">Selecione o veículo</option>';
-            vehicles.forEach(vehicle => {
-                const option = document.createElement('option');
-                option.value = vehicle.id;
-                option.textContent = `${vehicle.plate} - ${vehicle.brand} ${vehicle.model}`;
-                select.appendChild(option);
-            });
+            // Filtrar apenas veículos disponíveis
+            vehicles
+                .filter(vehicle => vehicle.status === 'disponivel' || vehicle.status === 'disponível')
+                .forEach(vehicle => {
+                    const option = document.createElement('option');
+                    option.value = vehicle.id;
+                    option.textContent = `${vehicle.plate} - ${vehicle.brand} ${vehicle.model}`;
+                    select.appendChild(option);
+                });
         }
     });
 }
@@ -4639,5 +4686,106 @@ function checkAndDisplayMaintenanceAlerts() {
     });
 }
 */
+
+// === FUNÇÕES DE MAPA E GEOCODING PARA DESTINOS ===
+
+/**
+ * Inicializar mapa Leaflet no modal de destino
+ * @param {number} lat - Latitude inicial (padrão: São Paulo)
+ * @param {number} lon - Longitude inicial (padrão: São Paulo)
+ */
+function initDestinationMap(lat = -23.550520, lon = -46.633308) {
+    // Remover mapa anterior se existir
+    if (window.destinationMapInstance) {
+        window.destinationMapInstance.remove();
+        window.destinationMapInstance = null;
+    }
+
+    // Verificar se o container existe
+    const mapContainer = document.getElementById('destinationMap');
+    if (!mapContainer) {
+        console.error('Container destinationMap não encontrado');
+        return;
+    }
+
+    try {
+        // Criar novo mapa
+        const map = L.map('destinationMap').setView([lat, lon], 13);
+        window.destinationMapInstance = map;
+
+        // Adicionar tiles OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Criar marcador arrastável
+        const marker = L.marker([lat, lon], { draggable: true }).addTo(map);
+
+        // Atualizar coordenadas quando arrastar marcador
+        marker.on('dragend', function(e) {
+            const pos = e.target.getLatLng();
+            document.getElementById('destinationLatitude').value = pos.lat.toFixed(8);
+            document.getElementById('destinationLongitude').value = pos.lng.toFixed(8);
+        });
+
+        // Atualizar marcador quando clicar no mapa
+        map.on('click', function(e) {
+            marker.setLatLng(e.latlng);
+            document.getElementById('destinationLatitude').value = e.latlng.lat.toFixed(8);
+            document.getElementById('destinationLongitude').value = e.latlng.lng.toFixed(8);
+        });
+
+        // Preencher campos de coordenadas
+        document.getElementById('destinationLatitude').value = lat.toFixed(8);
+        document.getElementById('destinationLongitude').value = lon.toFixed(8);
+
+        console.log('Mapa de destino inicializado:', lat, lon);
+    } catch (error) {
+        console.error('Erro ao inicializar mapa de destino:', error);
+    }
+}
+
+/**
+ * Buscar coordenadas GPS automaticamente do endereço usando geocoding
+ */
+async function geocodeDestinationAddress() {
+    const address = document.getElementById('destinationAddress').value.trim();
+
+    if (!address) {
+        showAlert('Digite um endereço primeiro', 'warning');
+        return;
+    }
+
+    try {
+        showAlert('Buscando coordenadas...', 'info');
+
+        // Chamar API de geocoding
+        const response = await fetch(`${API_URL}/destinations/geocode`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address })
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.latitude && data.longitude) {
+            // Preencher coordenadas
+            document.getElementById('destinationLatitude').value = data.latitude.toFixed(8);
+            document.getElementById('destinationLongitude').value = data.longitude.toFixed(8);
+
+            // Atualizar/inicializar mapa com as coordenadas encontradas
+            initDestinationMap(data.latitude, data.longitude);
+
+            showAlert(`Coordenadas encontradas! ${data.formatted_address}`, 'success');
+        } else {
+            showAlert('Endereço não encontrado. Tente ajustar ou selecionar no mapa manualmente.', 'warning');
+        }
+    } catch (error) {
+        console.error('Erro no geocoding:', error);
+        showAlert('Erro ao buscar coordenadas. Use o mapa manualmente.', 'danger');
+    }
+}
 
 // Inicialização do sistema é controlada pela página (ex.: dashboard.html)

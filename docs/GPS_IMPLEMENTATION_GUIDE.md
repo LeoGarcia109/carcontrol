@@ -2431,6 +2431,1044 @@ Este guia fornece uma implementação completa e testada de rastreamento GPS em 
 
 ---
 
+## 📍 Sistema de GPS para Destinos
+
+### Visão Geral
+
+Sistema complementar que adiciona coordenadas GPS aos destinos cadastrados, permitindo:
+
+- **Geocoding automático** via Nominatim (OpenStreetMap)
+- **Seleção manual** via mapa interativo Leaflet
+- **Exibição no mapa GPS** com marcadores diferenciados
+- **Cálculo de rotas reais** via OSRM (opcional)
+- **100% gratuito** - sem API keys necessárias
+
+### Características Principais
+
+| Característica | Valor |
+|----------------|-------|
+| **Precisão GPS** | DECIMAL(10,8) lat / DECIMAL(11,8) lon (~1.1mm) |
+| **Geocoding API** | Nominatim (OpenStreetMap) |
+| **Routing API** | OSRM (Open Source Routing Machine) |
+| **Map UI** | Leaflet.js (mesma lib do rastreamento) |
+| **Cor Marcador** | Verde (destinos) vs Azul (veículos) |
+| **Rate Limit** | 1 req/seg Nominatim (aceitável) |
+
+---
+
+### Estrutura de Banco de Dados
+
+#### Migration: Adicionar Coordenadas GPS
+
+**Arquivo**: `database/gps_destinos_migration.sql`
+
+```sql
+-- Adicionar campos de GPS à tabela destinos
+ALTER TABLE destinos
+ADD COLUMN latitude DECIMAL(10, 8) NULL COMMENT 'Latitude do destino' AFTER endereco,
+ADD COLUMN longitude DECIMAL(11, 8) NULL COMMENT 'Longitude do destino' AFTER latitude,
+ADD INDEX idx_coords (latitude, longitude);
+
+-- IMPORTANTE: NULL permite compatibilidade com destinos antigos
+-- Precision: 10,8 = ~1.1mm de precisão na latitude
+-- Precision: 11,8 = ~1.1mm de precisão na longitude
+```
+
+**Executar Migration**:
+```bash
+mysql -u root carcontrol_db < database/gps_destinos_migration.sql
+```
+
+**Verificar Estrutura**:
+```sql
+DESCRIBE destinos;
+-- Deve mostrar:
+-- latitude: decimal(10,8) NULL
+-- longitude: decimal(11,8) NULL
+-- idx_coords: KEY (latitude, longitude)
+```
+
+---
+
+### Implementação Backend
+
+#### 1. Geocoding Service
+
+**Arquivo**: `api/services/GeocodingService.php`
+
+```php
+<?php
+/**
+ * Geocoding Service
+ * Converte endereços em coordenadas GPS usando Nominatim (OpenStreetMap)
+ * API: 100% gratuita, sem necessidade de API key
+ *
+ * Rate Limiting: 1 requisição por segundo (Nominatim policy)
+ * User-Agent obrigatório: conforme política do Nominatim
+ */
+
+class GeocodingService {
+
+    /**
+     * Geocode address to coordinates (Endereço → Latitude/Longitude)
+     *
+     * @param string $address Endereço completo (ex: "Av. Paulista, 1000 - São Paulo/SP")
+     * @return array|false ['latitude' => float, 'longitude' => float, 'display_name' => string] ou false
+     */
+    public static function geocodeAddress($address) {
+        if (empty($address)) {
+            error_log("GeocodingService: Empty address provided");
+            return false;
+        }
+
+        // URL da API Nominatim (OpenStreetMap)
+        $baseUrl = 'https://nominatim.openstreetmap.org/search';
+
+        $params = http_build_query([
+            'q' => $address,
+            'format' => 'json',
+            'limit' => 1,              // Retornar apenas o melhor resultado
+            'addressdetails' => 1      // Incluir detalhes do endereço
+        ]);
+
+        $url = $baseUrl . '?' . $params;
+
+        // Configurar contexto HTTP
+        // User-Agent é OBRIGATÓRIO pela política do Nominatim
+        $context = stream_context_create([
+            'http' => [
+                'header' => "User-Agent: CarControl/1.0 (Fleet Management System)\r\n",
+                'timeout' => 10
+            ]
+        ]);
+
+        try {
+            error_log("GeocodingService: Geocoding address: $address");
+
+            $response = @file_get_contents($url, false, $context);
+
+            if ($response === false) {
+                error_log("GeocodingService: Failed to fetch from Nominatim API");
+                return false;
+            }
+
+            $data = json_decode($response, true);
+
+            if (empty($data) || !isset($data[0])) {
+                error_log("GeocodingService: No results found for address: $address");
+                return false;
+            }
+
+            $result = $data[0];
+
+            if (!isset($result['lat']) || !isset($result['lon'])) {
+                error_log("GeocodingService: Invalid response - missing coordinates");
+                return false;
+            }
+
+            $latitude = (float)$result['lat'];
+            $longitude = (float)$result['lon'];
+
+            error_log("GeocodingService: Success - Lat: $latitude, Lon: $longitude");
+
+            return [
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+                'display_name' => $result['display_name'] ?? $address,
+                'type' => $result['type'] ?? null,
+                'importance' => $result['importance'] ?? null
+            ];
+
+        } catch (Exception $e) {
+            error_log("GeocodingService: Exception - " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Reverse geocode (Latitude/Longitude → Endereço)
+     */
+    public static function reverseGeocode($latitude, $longitude) {
+        // Validar coordenadas
+        if (!is_numeric($latitude) || !is_numeric($longitude)) {
+            error_log("GeocodingService: Invalid coordinates");
+            return false;
+        }
+
+        if ($latitude < -90 || $latitude > 90 || $longitude < -180 || $longitude > 180) {
+            error_log("GeocodingService: Coordinates out of range");
+            return false;
+        }
+
+        $baseUrl = 'https://nominatim.openstreetmap.org/reverse';
+
+        $params = http_build_query([
+            'lat' => $latitude,
+            'lon' => $longitude,
+            'format' => 'json',
+            'addressdetails' => 1
+        ]);
+
+        $url = $baseUrl . '?' . $params;
+
+        $context = stream_context_create([
+            'http' => [
+                'header' => "User-Agent: CarControl/1.0 (Fleet Management System)\r\n",
+                'timeout' => 10
+            ]
+        ]);
+
+        try {
+            error_log("GeocodingService: Reverse geocoding - Lat: $latitude, Lon: $longitude");
+
+            $response = @file_get_contents($url, false, $context);
+
+            if ($response === false) {
+                error_log("GeocodingService: Failed to fetch reverse geocode");
+                return false;
+            }
+
+            $data = json_decode($response, true);
+
+            if (!isset($data['display_name'])) {
+                error_log("GeocodingService: No address found for coordinates");
+                return false;
+            }
+
+            return $data['display_name'];
+
+        } catch (Exception $e) {
+            error_log("GeocodingService: Reverse geocode exception - " . $e->getMessage());
+            return false;
+        }
+    }
+}
+```
+
+#### 2. Routing Service (Opcional)
+
+**Arquivo**: `api/services/RoutingService.php`
+
+```php
+<?php
+/**
+ * Routing Service
+ * Calcula rotas reais entre dois pontos usando OSRM
+ * API: 100% gratuita, sem necessidade de API key
+ */
+
+class RoutingService {
+
+    /**
+     * Calcular rota real entre dois pontos GPS
+     * IMPORTANTE: OSRM usa formato longitude,latitude (não latitude,longitude!)
+     *
+     * @return array ['distance_km', 'duration_minutes', 'geometry', 'steps']
+     */
+    public static function calculateRoute($fromLat, $fromLon, $toLat, $toLon) {
+        // Validações
+        if (!is_numeric($fromLat) || !is_numeric($fromLon) ||
+            !is_numeric($toLat) || !is_numeric($toLon)) {
+            error_log("RoutingService: Invalid coordinates");
+            return false;
+        }
+
+        if ($fromLat < -90 || $fromLat > 90 || $toLat < -90 || $toLat > 90) {
+            error_log("RoutingService: Latitude out of range");
+            return false;
+        }
+
+        if ($fromLon < -180 || $fromLon > 180 || $toLon < -180 || $toLon > 180) {
+            error_log("RoutingService: Longitude out of range");
+            return false;
+        }
+
+        // API pública do OSRM
+        $baseUrl = 'https://router.project-osrm.org/route/v1/driving';
+
+        // FORMATO: /driving/{lon1},{lat1};{lon2},{lat2}
+        $url = "{$baseUrl}/{$fromLon},{$fromLat};{$toLon},{$toLat}";
+        $url .= "?overview=full&geometries=geojson&steps=true";
+
+        try {
+            error_log("RoutingService: Calculating route from ({$fromLat}, {$fromLon}) to ({$toLat}, {$toLon})");
+
+            $context = stream_context_create([
+                'http' => ['timeout' => 10]
+            ]);
+
+            $response = @file_get_contents($url, false, $context);
+
+            if ($response === false) {
+                error_log("RoutingService: Failed to fetch route from OSRM");
+                return false;
+            }
+
+            $data = json_decode($response, true);
+
+            if (!isset($data['routes']) || empty($data['routes'])) {
+                error_log("RoutingService: No route found");
+                return false;
+            }
+
+            $route = $data['routes'][0];
+
+            if (!isset($route['distance']) || !isset($route['duration'])) {
+                error_log("RoutingService: Invalid route data");
+                return false;
+            }
+
+            $distanceMeters = (float)$route['distance'];
+            $durationSeconds = (float)$route['duration'];
+
+            $result = [
+                'distance_meters' => $distanceMeters,
+                'distance_km' => round($distanceMeters / 1000, 2),
+                'duration_seconds' => $durationSeconds,
+                'duration_minutes' => round($durationSeconds / 60, 1),
+                'duration_hours' => round($durationSeconds / 3600, 2),
+                'geometry' => $route['geometry'] ?? null,
+                'steps' => []
+            ];
+
+            // Extrair passos da rota
+            if (isset($route['legs'][0]['steps'])) {
+                foreach ($route['legs'][0]['steps'] as $step) {
+                    $result['steps'][] = [
+                        'distance' => $step['distance'] ?? 0,
+                        'duration' => $step['duration'] ?? 0,
+                        'instruction' => $step['maneuver']['instruction'] ?? '',
+                        'type' => $step['maneuver']['type'] ?? ''
+                    ];
+                }
+            }
+
+            error_log("RoutingService: Route calculated - {$result['distance_km']} km, {$result['duration_minutes']} min");
+
+            return $result;
+
+        } catch (Exception $e) {
+            error_log("RoutingService: Exception - " . $e->getMessage());
+            return false;
+        }
+    }
+}
+```
+
+#### 3. Controller de Destinos (Atualização)
+
+**Arquivo**: `api/controllers/DestinationController.php`
+
+Adicionar aos métodos existentes:
+
+```php
+public function getAll() {
+    try {
+        $query = "SELECT
+                    id, nome as name, endereco as address,
+                    latitude, longitude,  /* NOVO: Coordenadas GPS */
+                    distancia_km as distanceKm, observacoes as notes,
+                    ativo as active, created_at as createdAt
+                  FROM destinos
+                  WHERE ativo = 1
+                  ORDER BY nome ASC";
+
+        $stmt = $this->db->prepare($query);
+        $stmt->execute();
+        $destinations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Type casting para JSON correto
+        foreach ($destinations as &$dest) {
+            $dest['id'] = (int)$dest['id'];
+            $dest['distanceKm'] = $dest['distanceKm'] ? (int)$dest['distanceKm'] : null;
+
+            /* NOVO: Type casting GPS */
+            $dest['latitude'] = $dest['latitude'] ? (float)$dest['latitude'] : null;
+            $dest['longitude'] = $dest['longitude'] ? (float)$dest['longitude'] : null;
+        }
+
+        sendResponse([
+            'success' => true,
+            'data' => $destinations,
+            'count' => count($destinations)
+        ]);
+
+    } catch (Exception $e) {
+        error_log("Get destinations error: " . $e->getMessage());
+        sendError('Erro ao listar destinos', 500);
+    }
+}
+
+public function create($data) {
+    try {
+        if (empty($data['name'])) {
+            sendError('Nome do destino é obrigatório', 400);
+        }
+
+        $query = "INSERT INTO destinos
+                  (nome, endereco, latitude, longitude, distancia_km, observacoes, ativo)
+                  VALUES
+                  (:nome, :endereco, :latitude, :longitude, :distancia_km, :observacoes, 1)";
+
+        $stmt = $this->db->prepare($query);
+
+        $stmt->bindParam(':nome', $data['name']);
+        $stmt->bindParam(':endereco', $data['address']);
+
+        /* NOVO: Coordenadas GPS (opcionais) */
+        $latitude = isset($data['latitude']) ? $data['latitude'] : null;
+        $longitude = isset($data['longitude']) ? $data['longitude'] : null;
+        $stmt->bindValue(':latitude', $latitude, $latitude === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $stmt->bindValue(':longitude', $longitude, $longitude === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+
+        $stmt->bindParam(':distancia_km', $data['distance']);
+        $stmt->bindParam(':observacoes', $data['notes']);
+
+        $stmt->execute();
+        $destinationId = $this->db->lastInsertId();
+
+        sendResponse([
+            'success' => true,
+            'message' => 'Destino criado com sucesso',
+            'id' => $destinationId
+        ]);
+
+    } catch (Exception $e) {
+        error_log("Create destination error: " . $e->getMessage());
+        sendError('Erro ao criar destino', 500);
+    }
+}
+
+public function update($id, $data) {
+    try {
+        $updates = [];
+        $params = [':id' => (int)$id];
+
+        if (isset($data['name'])) {
+            $updates[] = "nome = :nome";
+            $params[':nome'] = $data['name'];
+        }
+        if (isset($data['address'])) {
+            $updates[] = "endereco = :endereco";
+            $params[':endereco'] = $data['address'];
+        }
+        if (isset($data['distance'])) {
+            $updates[] = "distancia_km = :distancia_km";
+            $params[':distancia_km'] = $data['distance'];
+        }
+
+        /* NOVO: Atualizar coordenadas GPS */
+        if (isset($data['latitude'])) {
+            $updates[] = "latitude = :latitude";
+            $params[':latitude'] = $data['latitude'];
+        }
+        if (isset($data['longitude'])) {
+            $updates[] = "longitude = :longitude";
+            $params[':longitude'] = $data['longitude'];
+        }
+
+        if (empty($updates)) {
+            sendError('Nenhum campo para atualizar', 400);
+        }
+
+        $query = "UPDATE destinos SET " . implode(', ', $updates) . " WHERE id = :id";
+        $stmt = $this->db->prepare($query);
+
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+
+        $stmt->execute();
+
+        sendResponse([
+            'success' => true,
+            'message' => 'Destino atualizado com sucesso'
+        ]);
+
+    } catch (Exception $e) {
+        error_log("Update destination error: " . $e->getMessage());
+        sendError('Erro ao atualizar destino', 500);
+    }
+}
+```
+
+#### 4. Rotas da API
+
+**Arquivo**: `api/index.php`
+
+Adicionar rotas:
+
+```php
+// POST /destinations/geocode
+if ($uriParts[0] === 'destinations' && isset($uriParts[1]) && $uriParts[1] === 'geocode') {
+    if ($method === 'POST') {
+        require_once 'services/GeocodingService.php';
+
+        $address = $input['address'] ?? '';
+
+        if (empty($address)) {
+            sendError('Endereço é obrigatório', 400);
+        }
+
+        $result = GeocodingService::geocodeAddress($address);
+
+        if ($result === false) {
+            sendResponse([
+                'success' => false,
+                'message' => 'Endereço não encontrado. Tente ajustar ou usar o mapa.'
+            ]);
+        } else {
+            sendResponse([
+                'success' => true,
+                'latitude' => $result['latitude'],
+                'longitude' => $result['longitude'],
+                'formatted_address' => $result['display_name']
+            ]);
+        }
+        exit();
+    }
+}
+
+// POST /routes/calculate (Opcional)
+if ($uriParts[0] === 'routes' && isset($uriParts[1]) && $uriParts[1] === 'calculate') {
+    if ($method === 'POST') {
+        require_once 'services/RoutingService.php';
+
+        $fromLat = $input['fromLat'] ?? null;
+        $fromLon = $input['fromLon'] ?? null;
+        $toLat = $input['toLat'] ?? null;
+        $toLon = $input['toLon'] ?? null;
+
+        if (!$fromLat || !$fromLon || !$toLat || !$toLon) {
+            sendError('Coordenadas de origem e destino são obrigatórias', 400);
+        }
+
+        $route = RoutingService::calculateRoute($fromLat, $fromLon, $toLat, $toLon);
+
+        if ($route === false) {
+            sendResponse([
+                'success' => false,
+                'message' => 'Não foi possível calcular a rota'
+            ]);
+        } else {
+            sendResponse([
+                'success' => true,
+                'route' => $route
+            ]);
+        }
+        exit();
+    }
+}
+```
+
+---
+
+### Implementação Frontend
+
+#### 1. Modal de Destino (HTML)
+
+**Arquivo**: `dashboard.html`
+
+Atualizar modal:
+
+```html
+<div id="destinationModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Cadastro de Destino</h2>
+            <button class="modal-close" onclick="closeDestinationModal()">×</button>
+        </div>
+
+        <form id="destinationForm" onsubmit="event.preventDefault(); addDestination()">
+            <!-- Nome -->
+            <div class="form-group">
+                <label>Nome do Destino:</label>
+                <input type="text" id="destinationName" required>
+            </div>
+
+            <!-- NOVO: Campo de Endereço com Botão Geocode -->
+            <div class="form-group">
+                <label>Endereço:</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="destinationAddress"
+                           placeholder="Ex: Av. Paulista, 1000 - São Paulo/SP"
+                           style="flex: 1;">
+                    <button type="button" class="btn btn-primary"
+                            onclick="geocodeDestinationAddress()">
+                        📍 Buscar GPS
+                    </button>
+                </div>
+            </div>
+
+            <!-- NOVO: Mapa Interativo -->
+            <div class="form-group">
+                <label>Localização no Mapa:</label>
+                <div id="destinationMap" style="height: 300px; border-radius: 8px;"></div>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <input type="number" id="destinationLatitude"
+                           step="any" readonly placeholder="Latitude">
+                    <input type="number" id="destinationLongitude"
+                           step="any" readonly placeholder="Longitude">
+                </div>
+                <small class="help-text">
+                    🖱️ Clique no mapa para ajustar a localização manualmente<br>
+                    📍 Ou use "Buscar GPS" para localizar automaticamente
+                </small>
+            </div>
+
+            <!-- Distância (Agora Opcional) -->
+            <div class="form-group">
+                <label>Distância (KM):</label>
+                <input type="number" id="destinationDistance"
+                       placeholder="Opcional - pode ser calculada pela rota">
+                <small class="help-text">Pode ser calculada automaticamente</small>
+            </div>
+
+            <!-- Observações -->
+            <div class="form-group">
+                <label>Observações:</label>
+                <textarea id="destinationNotes" rows="3"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Salvar Destino</button>
+        </form>
+    </div>
+</div>
+```
+
+#### 2. JavaScript - Mapa de Destino
+
+**Arquivo**: `js/main.js`
+
+Adicionar funções:
+
+```javascript
+// ===========================
+// MAPA INTERATIVO DE DESTINO
+// ===========================
+function initDestinationMap(lat = -23.550520, lon = -46.633308) {
+    // Remover mapa existente
+    if (window.destinationMapInstance) {
+        window.destinationMapInstance.remove();
+    }
+
+    // Criar mapa Leaflet
+    const map = L.map('destinationMap').setView([lat, lon], 13);
+    window.destinationMapInstance = map;
+
+    // Adicionar tiles OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(map);
+
+    // Criar marcador arrastável
+    const marker = L.marker([lat, lon], { draggable: true }).addTo(map);
+
+    // Atualizar coordenadas ao arrastar
+    marker.on('dragend', function(e) {
+        const pos = e.target.getLatLng();
+        document.getElementById('destinationLatitude').value = pos.lat.toFixed(8);
+        document.getElementById('destinationLongitude').value = pos.lng.toFixed(8);
+    });
+
+    // Atualizar marcador ao clicar no mapa
+    map.on('click', function(e) {
+        marker.setLatLng(e.latlng);
+        document.getElementById('destinationLatitude').value = e.latlng.lat.toFixed(8);
+        document.getElementById('destinationLongitude').value = e.latlng.lng.toFixed(8);
+    });
+
+    // Atualizar campos de coordenadas
+    document.getElementById('destinationLatitude').value = lat.toFixed(8);
+    document.getElementById('destinationLongitude').value = lon.toFixed(8);
+
+    console.log('Mapa de destino inicializado:', { lat, lon });
+}
+
+// ===========================
+// GEOCODING AUTOMÁTICO
+// ===========================
+async function geocodeDestinationAddress() {
+    const address = document.getElementById('destinationAddress').value.trim();
+
+    if (!address) {
+        showAlert('Digite um endereço primeiro', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/destinations/geocode`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address })
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.latitude && data.longitude) {
+            // Atualizar coordenadas
+            document.getElementById('destinationLatitude').value = data.latitude.toFixed(8);
+            document.getElementById('destinationLongitude').value = data.longitude.toFixed(8);
+
+            // Atualizar mapa
+            initDestinationMap(data.latitude, data.longitude);
+
+            showAlert(`Coordenadas encontradas! ${data.formatted_address}`, 'success');
+        } else {
+            showAlert(data.message || 'Endereço não encontrado', 'warning');
+        }
+
+    } catch (error) {
+        console.error('Erro ao buscar GPS:', error);
+        showAlert('Erro ao buscar coordenadas GPS', 'danger');
+    }
+}
+
+// ===========================
+// CRIAR/ATUALIZAR DESTINO
+// ===========================
+async function addDestination() {
+    const name = document.getElementById('destinationName').value.trim();
+    const address = document.getElementById('destinationAddress').value.trim();
+    const latitude = parseFloat(document.getElementById('destinationLatitude').value) || null;
+    const longitude = parseFloat(document.getElementById('destinationLongitude').value) || null;
+    const distance = parseInt(document.getElementById('destinationDistance').value) || null;
+    const notes = document.getElementById('destinationNotes').value.trim();
+
+    if (!name) {
+        showAlert('Nome do destino é obrigatório', 'danger');
+        return;
+    }
+
+    const destinationData = {
+        name: name,
+        address: address,
+        latitude: latitude,      // NOVO
+        longitude: longitude,    // NOVO
+        distance: distance,
+        notes: notes
+    };
+
+    try {
+        let response;
+
+        if (editingDestination) {
+            response = await apiUpdateDestination(editingDestination.id, destinationData);
+        } else {
+            response = await apiCreateDestination(destinationData);
+        }
+
+        if (response.success) {
+            showAlert(response.message, 'success');
+            await loadDestinationsTable();
+            closeDestinationModal();
+            resetDestinationForm();
+        } else {
+            showAlert(response.message || 'Erro ao salvar destino', 'danger');
+        }
+
+    } catch (error) {
+        console.error('Erro ao salvar destino:', error);
+        showAlert('Erro ao salvar destino', 'danger');
+    }
+}
+
+// ===========================
+// EDITAR DESTINO
+// ===========================
+async function editDestination(id) {
+    try {
+        const response = await apiGetDestination(id);
+
+        if (response.success && response.data) {
+            const destination = response.data;
+
+            document.getElementById('destinationName').value = destination.name || '';
+            document.getElementById('destinationAddress').value = destination.address || '';
+            document.getElementById('destinationDistance').value = destination.distanceKm || '';
+            document.getElementById('destinationNotes').value = destination.notes || '';
+
+            // NOVO: Carregar coordenadas GPS
+            document.getElementById('destinationLatitude').value = destination.latitude || '';
+            document.getElementById('destinationLongitude').value = destination.longitude || '';
+
+            editingDestination = destination;
+            openDestinationModal();
+
+            // NOVO: Inicializar mapa com coordenadas existentes
+            if (destination.latitude && destination.longitude) {
+                setTimeout(() => {
+                    initDestinationMap(destination.latitude, destination.longitude);
+                }, 300);
+            } else {
+                setTimeout(() => {
+                    initDestinationMap(); // Mapa padrão (São Paulo)
+                }, 300);
+            }
+        }
+
+    } catch (error) {
+        console.error('Erro ao carregar destino:', error);
+        showAlert('Erro ao carregar destino', 'danger');
+    }
+}
+
+// ===========================
+// RESETAR FORM
+// ===========================
+function resetDestinationForm() {
+    document.getElementById('destinationForm').reset();
+    document.getElementById('destinationAddress').value = '';
+    document.getElementById('destinationLatitude').value = '';
+    document.getElementById('destinationLongitude').value = '';
+
+    // NOVO: Remover mapa
+    if (window.destinationMapInstance) {
+        window.destinationMapInstance.remove();
+        window.destinationMapInstance = null;
+    }
+
+    editingDestination = null;
+}
+
+// ===========================
+// ABRIR MODAL
+// ===========================
+function openDestinationModal() {
+    const modal = document.getElementById('destinationModal');
+    modal.style.display = 'flex';
+
+    // Inicializar mapa após modal abrir
+    setTimeout(() => {
+        if (!window.destinationMapInstance) {
+            initDestinationMap();
+        }
+    }, 300);
+}
+
+// ===========================
+// SEÇÃO GPS TRACKING - Carregar Destinos
+// ===========================
+function showSection(sectionId) {
+    // ... código existente ...
+
+    if (sectionId === 'rastreamento') {
+        setTimeout(() => {
+            if (typeof initGPSMap === 'function' && !gpsMap) {
+                initGPSMap();
+                initRouteHistoryMap();
+
+                // NOVO: Carregar marcadores de destinos
+                if (typeof loadDestinationMarkers === 'function') {
+                    loadDestinationMarkers();
+                }
+            }
+        }, 100);
+    }
+}
+```
+
+#### 3. JavaScript - Marcadores de Destinos
+
+**Arquivo**: `js/gps-tracking.js`
+
+Adicionar função:
+
+```javascript
+// ===========================
+// CARREGAR MARCADORES DE DESTINOS
+// ===========================
+async function loadDestinationMarkers() {
+    if (!gpsMap) {
+        console.warn('Mapa GPS não inicializado para carregar destinos');
+        return;
+    }
+
+    try {
+        const response = await apiGetDestinations();
+
+        if (!response.success) {
+            console.error('Erro ao carregar destinos:', response.message);
+            return;
+        }
+
+        const destinations = response.data || [];
+
+        // Ícone verde para destinos (diferente dos veículos azuis)
+        const destinationIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        let count = 0;
+
+        destinations.forEach(destination => {
+            if (destination.latitude && destination.longitude) {
+                const marker = L.marker(
+                    [destination.latitude, destination.longitude],
+                    { icon: destinationIcon }
+                ).addTo(gpsMap);
+
+                let popupContent = `<b>📍 ${destination.name}</b>`;
+                if (destination.address) {
+                    popupContent += `<br><small>${destination.address}</small>`;
+                }
+                if (destination.distanceKm) {
+                    popupContent += `<br><small><strong>Distância:</strong> ${destination.distanceKm} km</small>`;
+                }
+
+                marker.bindPopup(popupContent);
+                count++;
+            }
+        });
+
+        console.log(`✅ Carregados ${count} destinos no mapa GPS`);
+
+    } catch (error) {
+        console.error('Erro ao carregar destinos no mapa:', error);
+    }
+}
+
+// Exportar função globalmente
+window.loadDestinationMarkers = loadDestinationMarkers;
+```
+
+---
+
+### Fluxo de Uso
+
+#### Criar Destino com GPS
+
+1. Dashboard → Cadastros → Destinos → Novo Destino
+2. **Opção 1 - Geocoding Automático**:
+   - Digitar endereço: "Av. Paulista, 1000 - São Paulo/SP"
+   - Clicar "📍 Buscar GPS"
+   - Coordenadas preenchidas automaticamente
+   - Ajustar no mapa se necessário
+3. **Opção 2 - Seleção Manual**:
+   - Clicar diretamente no mapa
+   - Coordenadas atualizadas em tempo real
+   - Arrastar marcador para ajustar
+4. Salvar destino
+
+#### Visualizar no Mapa GPS
+
+1. Dashboard → Rastreamento GPS
+2. Mapa exibe:
+   - **Marcadores azuis**: Veículos em movimento
+   - **Marcadores verdes**: Destinos cadastrados
+3. Clicar no marcador verde:
+   - Popup mostra nome, endereço, distância
+
+#### Calcular Rota Real (Opcional)
+
+```javascript
+// Exemplo de uso da API de rotas
+const response = await fetch('http://localhost:5000/routes/calculate', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        fromLat: -23.550520,  // Origem
+        fromLon: -46.633308,
+        toLat: -23.561440,    // Destino
+        toLon: -46.655880
+    })
+});
+
+const data = await response.json();
+// data.route.distance_km = 1.5
+// data.route.duration_minutes = 5.2
+// data.route.geometry = GeoJSON LineString
+```
+
+---
+
+### APIs Utilizadas
+
+| API | Função | Custo | Rate Limit |
+|-----|--------|-------|------------|
+| **Nominatim** | Geocoding | Grátis | 1 req/seg |
+| **OSRM** | Routing | Grátis | Sem limite |
+| **OpenStreetMap** | Map Tiles | Grátis | Fair use |
+| **Leaflet.js** | Map Library | Open Source | N/A |
+
+**Políticas Importantes**:
+- Nominatim requer User-Agent identificado
+- Nominatim: máximo 1 requisição/segundo
+- OpenStreetMap tiles: uso justo (não sobrecarregar)
+
+---
+
+### Troubleshooting
+
+#### Geocoding não funciona
+
+**Sintoma**: Botão "Buscar GPS" não retorna coordenadas
+
+**Diagnóstico**:
+```bash
+# Testar API diretamente
+curl -H "User-Agent: Test" \
+  "https://nominatim.openstreetmap.org/search?q=Av.%20Paulista%2C%201000%20-%20São%20Paulo&format=json&limit=1"
+```
+
+**Soluções**:
+1. Verificar User-Agent está presente
+2. Respeitar rate limit (1 req/seg)
+3. Verificar endereço está completo e formatado
+
+#### Destinos não aparecem no mapa
+
+**Sintoma**: Marcadores verdes não são exibidos
+
+**Diagnóstico**:
+```javascript
+console.log('Destinos:', await apiGetDestinations());
+// Verificar se latitude e longitude não são NULL
+```
+
+**Soluções**:
+1. Verificar migration foi executada
+2. Confirmar coordenadas não são NULL
+3. Verificar função loadDestinationMarkers() está sendo chamada
+
+#### Coordenadas Inválidas
+
+**Sintoma**: Marcador aparece em local errado
+
+**Verificar Precisão**:
+```sql
+SELECT
+    nome,
+    latitude,
+    longitude,
+    CONCAT('https://www.google.com/maps?q=', latitude, ',', longitude) as google_maps_link
+FROM destinos
+WHERE latitude IS NOT NULL;
+```
+
+Abrir link do Google Maps para validar localização.
+
+---
+
+### Benefícios da Implementação
+
+✅ **Precisão**: Coordenadas reais em vez de distância estimada
+✅ **Visualização**: Destinos visíveis no mapa de rastreamento
+✅ **Rotas Reais**: Cálculo de distância real via OSRM
+✅ **Gratuito**: 100% open source, sem custos
+✅ **Flexível**: Geocoding automático + seleção manual
+✅ **Compatível**: Destinos antigos continuam funcionando (NULL)
+
+---
+
 **Desenvolvido com ❤️ por Leonardo Garcia**
 **Projeto**: CarControl - Sistema de Gestão de Frotas
 **Data**: Novembro 2025

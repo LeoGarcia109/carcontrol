@@ -216,6 +216,11 @@ body::before {
     color: rgba(255, 255, 255, 0.5);
 }
 
+/* Placeholder escuro para campos com fundo claro (readonly GPS fields) */
+.form-group input[readonly]::placeholder {
+    color: rgba(0, 0, 0, 0.4);
+}
+
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {

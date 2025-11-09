@@ -45,17 +45,26 @@ function initRouteHistoryMap() {
     console.log('Mapa de histórico inicializado');
 }
 
+// Array de cores vibrantes para diferenciar veículos
+const vehicleColors = [
+    '#3b82f6', // Azul
+    '#ef4444', // Vermelho
+    '#10b981', // Verde
+    '#f59e0b', // Laranja
+    '#8b5cf6', // Roxo
+    '#ec4899', // Rosa
+    '#14b8a6', // Teal
+    '#f97316'  // Laranja escuro
+];
+
 // Criar ícone customizado para veículo
 function createVehicleIcon(color = '#3b82f6') {
     return L.divIcon({
         className: 'custom-vehicle-marker',
         html: `
-            <div style="position: relative;">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="${color}" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M5 11L6.5 6.5H17.5L19 11M5 11H3M5 11V17C5 17.5523 5.44772 18 6 18H7C7.55228 18 8 17.5523 8 17V16M19 11H21M19 11V17C19 17.5523 18.5523 18 18 18H17C16.4477 18 16 17.5523 16 17V16M8 16H16M8 16C8 17.1046 7.10457 18 6 18C4.89543 18 4 17.1046 4 16C4 14.8954 4.89543 14 6 14C7.10457 14 8 14.8954 8 16ZM16 16C16 17.1046 16.8954 18 18 18C19.1046 18 20 17.1046 20 16C20 14.8954 19.1046 14 18 14C16.8954 14 16 14.8954 16 16Z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <div style="position: absolute; top: -8px; right: -8px; width: 12px; height: 12px; background: #10b981; border: 2px solid white; border-radius: 50%; animation: pulse 2s infinite;"></div>
-            </div>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="${color}" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 11L6.5 6.5H17.5L19 11M5 11H3M5 11V17C5 17.5523 5.44772 18 6 18H7C7.55228 18 8 17.5523 8 17V16M19 11H21M19 11V17C19 17.5523 18.5523 18 18 18H17C16.4477 18 16 17.5523 16 17V16M8 16H16M8 16C8 17.1046 7.10457 18 6 18C4.89543 18 4 17.1046 4 16C4 14.8954 4.89543 14 6 14C7.10457 14 8 14.8954 8 16ZM16 16C16 17.1046 16.8954 18 18 18C19.1046 18 20 17.1046 20 16C20 14.8954 19.1046 14 18 14C16.8954 14 16 14.8954 16 16Z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
         `,
         iconSize: [40, 40],
         iconAnchor: [20, 40],
@@ -92,7 +101,7 @@ async function updateVehicleMarkers() {
         });
 
         // Atualizar ou criar marcadores para veículos ativos
-        vehicles.forEach(vehicle => {
+        vehicles.forEach((vehicle, index) => {
             const { vehicleId, plate, model, latitude, longitude, driverName, timestamp, speed } = vehicle;
 
             console.log(`📍 Processando veículo ${plate}:`, {
@@ -110,16 +119,19 @@ async function updateVehicleMarkers() {
             const position = [parseFloat(latitude), parseFloat(longitude)];
             console.log(`✅ Posição válida para ${plate}:`, position);
 
+            // Selecionar cor baseada no índice do veículo (rotação circular)
+            const vehicleColor = vehicleColors[index % vehicleColors.length];
+
             // Se o marcador já existe, atualizar posição
             if (vehicleMarkers[vehicleId]) {
                 console.log(`🔄 Atualizando marcador existente de ${plate}`);
                 vehicleMarkers[vehicleId].setLatLng(position);
                 vehicleMarkers[vehicleId].setPopupContent(createPopupContent(vehicle));
             } else {
-                // Criar novo marcador
-                console.log(`➕ Criando novo marcador para ${plate}`);
+                // Criar novo marcador com cor única
+                console.log(`➕ Criando novo marcador para ${plate} com cor ${vehicleColor}`);
                 const marker = L.marker(position, {
-                    icon: createVehicleIcon('#3b82f6')
+                    icon: createVehicleIcon(vehicleColor)
                 }).addTo(gpsMap);
 
                 marker.bindPopup(createPopupContent(vehicle));
@@ -829,7 +841,70 @@ function displayRouteInfoOverlay(data) {
     console.log('✅ Overlay de informações exibido com destino:', destino);
 }
 
+// === MARCADORES DE DESTINOS NO MAPA GPS ===
+
+/**
+ * Carregar e exibir marcadores de destinos cadastrados no mapa GPS
+ */
+async function loadDestinationMarkers() {
+    if (!gpsMap) {
+        console.warn('Mapa GPS não inicializado para carregar destinos');
+        return;
+    }
+
+    try {
+        const response = await apiGetDestinations();
+
+        if (!response.success || !response.data) {
+            console.log('Nenhum destino encontrado ou erro na API');
+            return;
+        }
+
+        // Ícone verde para destinos
+        const destinationIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        let count = 0;
+
+        response.data.forEach(destination => {
+            // Só adicionar se tiver coordenadas
+            if (destination.latitude && destination.longitude) {
+                const marker = L.marker(
+                    [destination.latitude, destination.longitude],
+                    { icon: destinationIcon }
+                ).addTo(gpsMap);
+
+                // Popup com informações do destino
+                let popupContent = `<b>📍 ${destination.name}</b>`;
+
+                if (destination.address) {
+                    popupContent += `<br><small>${destination.address}</small>`;
+                }
+
+                if (destination.distanceKm) {
+                    popupContent += `<br><small><strong>Distância:</strong> ${destination.distanceKm} km</small>`;
+                }
+
+                marker.bindPopup(popupContent);
+                count++;
+            }
+        });
+
+        console.log(`✅ Carregados ${count} destinos no mapa GPS`);
+
+    } catch (error) {
+        console.error('Erro ao carregar marcadores de destinos:', error);
+    }
+}
+
 // Expor novas funções globalmente
 window.initGPSTabs = initGPSTabs;
 window.switchGPSTab = switchGPSTab;
 window.selectRouteFromSidebar = selectRouteFromSidebar;
+window.loadDestinationMarkers = loadDestinationMarkers;

@@ -90,9 +90,10 @@ try {
                 'vehicles' => '/vehicles (GET, POST, PUT, DELETE)',
                 'usage' => '/usage (GET, POST, PUT)',
                 'maintenance' => '/maintenance (GET, POST, DELETE)',
-                'destinations' => '/destinations (GET, POST, PUT, DELETE)',
+                'destinations' => '/destinations (GET, POST, PUT, DELETE), /destinations/geocode (POST)',
                 'dashboard' => '/dashboard/stats',
-                'gps' => '/gps/active, /gps/history/{id}, /gps/update, /gps/stop, /gps/vehicle/{id}'
+                'gps' => '/gps/active, /gps/history/{id}, /gps/update, /gps/stop, /gps/vehicle/{id}',
+                'routes' => '/routes/calculate (POST)'
             ]
         ]);
     }
@@ -342,6 +343,35 @@ try {
     // ============================================================
 
     if ($uriParts[0] === 'destinations') {
+        // Rota especial: POST /destinations/geocode
+        if (isset($uriParts[1]) && $uriParts[1] === 'geocode' && $method === 'POST') {
+            require_once 'services/GeocodingService.php';
+
+            $address = $input['address'] ?? '';
+
+            if (empty($address)) {
+                sendError('Endereço é obrigatório', 400);
+            }
+
+            $result = GeocodingService::geocodeAddress($address);
+
+            if ($result === false) {
+                sendResponse([
+                    'success' => false,
+                    'message' => 'Endereço não encontrado. Tente ajustar ou usar o mapa.'
+                ]);
+            } else {
+                sendResponse([
+                    'success' => true,
+                    'latitude' => $result['latitude'],
+                    'longitude' => $result['longitude'],
+                    'formatted_address' => $result['display_name']
+                ]);
+            }
+            exit();
+        }
+
+        // Rotas normais de CRUD
         $destinationController = new DestinationController($db);
 
         switch ($method) {
@@ -459,6 +489,42 @@ try {
 
             default:
                 sendError('Método não permitido', 405);
+        }
+        exit();
+    }
+
+    // ============================================================
+    // ROTAS DE CÁLCULO DE ROTAS (ROUTING)
+    // ============================================================
+
+    if ($uriParts[0] === 'routes' && isset($uriParts[1]) && $uriParts[1] === 'calculate') {
+        if ($method === 'POST') {
+            require_once 'services/RoutingService.php';
+
+            $fromLat = $input['fromLat'] ?? null;
+            $fromLon = $input['fromLon'] ?? null;
+            $toLat = $input['toLat'] ?? null;
+            $toLon = $input['toLon'] ?? null;
+
+            if (!$fromLat || !$fromLon || !$toLat || !$toLon) {
+                sendError('Coordenadas de origem e destino são obrigatórias', 400);
+            }
+
+            $route = RoutingService::calculateRoute($fromLat, $fromLon, $toLat, $toLon);
+
+            if ($route === false) {
+                sendResponse([
+                    'success' => false,
+                    'message' => 'Não foi possível calcular a rota. Verifique as coordenadas.'
+                ]);
+            } else {
+                sendResponse([
+                    'success' => true,
+                    'route' => $route
+                ]);
+            }
+        } else {
+            sendError('Método não permitido', 405);
         }
         exit();
     }

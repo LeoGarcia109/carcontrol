@@ -27,8 +27,17 @@
                 </div>
             </div>
 
-            <!-- Ações do Header: GPS + Logout agrupados à direita -->
+            <!-- Ações do Header: Offline + GPS + Logout agrupados à direita -->
             <div class="header-actions">
+                <!-- Offline Indicator -->
+                <div id="offlineIndicator" class="offline-indicator online">
+                    <svg width="16" height="16" fill="currentColor">
+                        <circle cx="8" cy="8" r="6" fill="#10b981"/>
+                    </svg>
+                    <span>Online</span>
+                    <div id="offlinePendingBadge" class="pending-badge" style="display: none;">0</div>
+                </div>
+
                 <!-- GPS Indicator -->
                 <div id="gpsIndicator" class="gps-indicator inactive">
                     <svg width="16" height="16" fill="currentColor">
@@ -459,8 +468,44 @@
         </div>
     </div>
 
+    <!-- Offline Support Scripts -->
+    <script src="js/offline-db.js"></script>
+    <script src="js/sync-manager.js"></script>
+
+    <!-- Core Scripts -->
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
-    <script src="js/mobile-driver.js?v=17"></script>
+    <script src="js/mobile-driver.js?v=18"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        // Registrar Service Worker para suporte offline
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', async () => {
+                try {
+                    const registration = await navigator.serviceWorker.register('/sw.js');
+                    console.log('[SW] Service Worker registered:', registration.scope);
+
+                    // Listen para atualizações do SW
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        console.log('[SW] New service worker found');
+
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // Nova versão disponível
+                                console.log('[SW] New version available');
+                                // Opcionalmente mostrar notificação ao usuário
+                            }
+                        });
+                    });
+                } catch (error) {
+                    console.error('[SW] Service Worker registration failed:', error);
+                }
+            });
+        } else {
+            console.warn('[SW] Service Workers not supported');
+        }
+    </script>
 </body>
 </html>

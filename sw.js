@@ -1,0 +1,333 @@
+// Service Worker para CarControl - Mobile Driver
+// Versão: 1.0.0
+// Suporte offline com cache de assets e Background Sync
+
+const CACHE_VERSION = 'carcontrol-v1.0.0';
+const CACHE_STATIC = `${CACHE_VERSION}-static`;
+const CACHE_DYNAMIC = `${CACHE_VERSION}-dynamic`;
+const CACHE_API = `${CACHE_VERSION}-api`;
+
+// Assets estáticos para cache (offline-first)
+const STATIC_ASSETS = [
+    '/',
+    '/index.html',
+    '/mobile-driver.html',
+    '/dashboard.html',
+    '/css/styles.css',
+    '/css/mobile-driver.css',
+    '/js/api.js',
+    '/js/auth.js',
+    '/js/mobile-driver.js',
+    '/js/gps-tracking.js',
+    '/js/main.js',
+    'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
+    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+];
+
+// API endpoints que devem ser cacheados
+const CACHEABLE_API_ENDPOINTS = [
+    '/vehicles',
+    '/drivers',
+    '/destinations',
+    '/usage'
+];
+
+// ===========================
+// INSTALL EVENT
+// ===========================
+self.addEventListener('install', (event) => {
+    console.log('[SW] Installing Service Worker...', CACHE_VERSION);
+
+    event.waitUntil(
+        caches.open(CACHE_STATIC)
+            .then(cache => {
+                console.log('[SW] Caching static assets');
+                return cache.addAll(STATIC_ASSETS);
+            })
+            .then(() => {
+                console.log('[SW] Static assets cached successfully');
+                return self.skipWaiting(); // Ativa imediatamente
+            })
+            .catch(error => {
+                console.error('[SW] Error caching static assets:', error);
+            })
+    );
+});
+
+// ===========================
+// ACTIVATE EVENT
+// ===========================
+self.addEventListener('activate', (event) => {
+    console.log('[SW] Activating Service Worker...', CACHE_VERSION);
+
+    event.waitUntil(
+        caches.keys()
+            .then(cacheNames => {
+                return Promise.all(
+                    cacheNames.map(cacheName => {
+                        // Remover caches antigos
+                        if (cacheName.startsWith('carcontrol-') &&
+                            cacheName !== CACHE_STATIC &&
+                            cacheName !== CACHE_DYNAMIC &&
+                            cacheName !== CACHE_API) {
+                            console.log('[SW] Removing old cache:', cacheName);
+                            return caches.delete(cacheName);
+                        }
+                    })
+                );
+            })
+            .then(() => {
+                console.log('[SW] Service Worker activated');
+                return self.clients.claim(); // Assume controle imediatamente
+            })
+    );
+});
+
+// ===========================
+// FETCH EVENT - ESTRATÉGIAS DE CACHE
+// ===========================
+self.addEventListener('fetch', (event) => {
+    const { request } = event;
+    const url = new URL(request.url);
+
+    // Ignorar requisições que não sejam GET
+    if (request.method !== 'GET') {
+        return;
+    }
+
+    // Estratégia 1: Cache-First para assets estáticos
+    if (isStaticAsset(url.pathname)) {
+        event.respondWith(cacheFirst(request, CACHE_STATIC));
+        return;
+    }
+
+    // Estratégia 2: Network-First com fallback para API endpoints
+    if (isAPIRequest(url)) {
+        event.respondWith(networkFirstWithCache(request, CACHE_API));
+        return;
+    }
+
+    // Estratégia 3: Network-First para páginas HTML
+    if (request.headers.get('accept').includes('text/html')) {
+        event.respondWith(networkFirstWithCache(request, CACHE_DYNAMIC));
+        return;
+    }
+
+    // Default: Network-only
+    event.respondWith(fetch(request));
+});
+
+// ===========================
+// BACKGROUND SYNC EVENT
+// ===========================
+self.addEventListener('sync', (event) => {
+    console.log('[SW] Background Sync event:', event.tag);
+
+    if (event.tag === 'sync-pending-data') {
+        event.waitUntil(syncPendingData());
+    }
+
+    if (event.tag === 'sync-gps-queue') {
+        event.waitUntil(syncGPSQueue());
+    }
+});
+
+// ===========================
+// MESSAGE EVENT - Comunicação com app
+// ===========================
+self.addEventListener('message', (event) => {
+    console.log('[SW] Message received:', event.data);
+
+    if (event.data.action === 'skipWaiting') {
+        self.skipWaiting();
+    }
+
+    if (event.data.action === 'clearCache') {
+        event.waitUntil(clearAllCaches());
+    }
+
+    if (event.data.action === 'syncNow') {
+        event.waitUntil(syncPendingData());
+    }
+});
+
+// ===========================
+// CACHE STRATEGIES
+// ===========================
+
+/**
+ * Cache-First Strategy
+ * Busca no cache primeiro, fallback para network
+ */
+async function cacheFirst(request, cacheName) {
+    const cache = await caches.open(cacheName);
+    const cached = await cache.match(request);
+
+    if (cached) {
+        console.log('[SW] Cache hit:', request.url);
+        return cached;
+    }
+
+    try {
+        console.log('[SW] Cache miss, fetching:', request.url);
+        const response = await fetch(request);
+
+        // Cache da resposta se for bem sucedida
+        if (response.ok) {
+            cache.put(request, response.clone());
+        }
+
+        return response;
+    } catch (error) {
+        console.error('[SW] Fetch failed:', error);
+
+        // Retornar página offline se disponível
+        return cache.match('/offline.html') || new Response('Offline', {
+            status: 503,
+            statusText: 'Service Unavailable'
+        });
+    }
+}
+
+/**
+ * Network-First Strategy com fallback para cache
+ * Tenta network primeiro, fallback para cache se falhar
+ */
+async function networkFirstWithCache(request, cacheName) {
+    const cache = await caches.open(cacheName);
+
+    try {
+        const response = await fetch(request);
+
+        // Cache da resposta se for bem sucedida
+        if (response.ok) {
+            cache.put(request, response.clone());
+        }
+
+        return response;
+    } catch (error) {
+        console.log('[SW] Network failed, trying cache:', request.url);
+        const cached = await cache.match(request);
+
+        if (cached) {
+            return cached;
+        }
+
+        // Se for API, retornar resposta vazia com dados do IndexedDB
+        if (isAPIRequest(new URL(request.url))) {
+            return new Response(JSON.stringify({
+                success: true,
+                data: [],
+                offline: true,
+                message: 'Dados carregados do cache local'
+            }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        throw error;
+    }
+}
+
+// ===========================
+// SYNC FUNCTIONS
+// ===========================
+
+/**
+ * Sincronizar dados pendentes (rotas, despesas, finalizações)
+ */
+async function syncPendingData() {
+    console.log('[SW] Starting sync of pending data...');
+
+    try {
+        // Notificar clientes que sincronização começou
+        await notifyClients({ type: 'SYNC_STARTED' });
+
+        // Aguardar o sync manager do app fazer o trabalho
+        // O SW apenas dispara o evento, a lógica fica no sync-manager.js
+
+        await notifyClients({ type: 'SYNC_COMPLETED' });
+        console.log('[SW] Sync completed successfully');
+
+        return Promise.resolve();
+    } catch (error) {
+        console.error('[SW] Sync failed:', error);
+        await notifyClients({
+            type: 'SYNC_FAILED',
+            error: error.message
+        });
+        return Promise.reject(error);
+    }
+}
+
+/**
+ * Sincronizar fila de GPS em lote
+ */
+async function syncGPSQueue() {
+    console.log('[SW] Starting GPS queue sync...');
+
+    try {
+        await notifyClients({ type: 'GPS_SYNC_STARTED' });
+
+        // Lógica de sincronização delegada ao sync-manager.js
+
+        await notifyClients({ type: 'GPS_SYNC_COMPLETED' });
+        return Promise.resolve();
+    } catch (error) {
+        console.error('[SW] GPS sync failed:', error);
+        return Promise.reject(error);
+    }
+}
+
+// ===========================
+// HELPER FUNCTIONS
+// ===========================
+
+/**
+ * Verificar se é um asset estático
+ */
+function isStaticAsset(pathname) {
+    const staticExtensions = ['.html', '.css', '.js', '.png', '.jpg', '.jpeg', '.svg', '.gif', '.woff', '.woff2'];
+    return staticExtensions.some(ext => pathname.endsWith(ext));
+}
+
+/**
+ * Verificar se é uma requisição de API
+ */
+function isAPIRequest(url) {
+    return url.hostname === 'localhost' &&
+           (url.port === '5000' || url.pathname.startsWith('/api/'));
+}
+
+/**
+ * Limpar todos os caches
+ */
+async function clearAllCaches() {
+    const cacheNames = await caches.keys();
+    return Promise.all(
+        cacheNames.map(cacheName => caches.delete(cacheName))
+    );
+}
+
+/**
+ * Notificar todos os clientes (páginas abertas)
+ */
+async function notifyClients(message) {
+    const clients = await self.clients.matchAll({ type: 'window' });
+    clients.forEach(client => {
+        client.postMessage(message);
+    });
+}
+
+/**
+ * Verificar se endpoint deve ser cacheado
+ */
+function shouldCacheAPIEndpoint(pathname) {
+    return CACHEABLE_API_ENDPOINTS.some(endpoint =>
+        pathname.includes(endpoint)
+    );
+}
+
+console.log('[SW] Service Worker loaded');

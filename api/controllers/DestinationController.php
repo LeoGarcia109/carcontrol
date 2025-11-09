@@ -15,6 +15,7 @@ class DestinationController {
         try {
             $query = "SELECT
                         id, nome as name, endereco as address,
+                        latitude, longitude,
                         distancia_km as distanceKm, observacoes as notes,
                         ativo as active, created_at as createdAt
                       FROM destinos
@@ -29,6 +30,8 @@ class DestinationController {
             foreach ($destinations as &$dest) {
                 $dest['id'] = (int)$dest['id'];
                 $dest['distanceKm'] = $dest['distanceKm'] ? (int)$dest['distanceKm'] : null;
+                $dest['latitude'] = $dest['latitude'] ? (float)$dest['latitude'] : null;
+                $dest['longitude'] = $dest['longitude'] ? (float)$dest['longitude'] : null;
             }
 
             sendResponse([
@@ -50,14 +53,21 @@ class DestinationController {
             }
 
             $query = "INSERT INTO destinos
-                      (nome, endereco, distancia_km, observacoes, ativo)
+                      (nome, endereco, latitude, longitude, distancia_km, observacoes, ativo)
                       VALUES
-                      (:nome, :endereco, :distancia_km, :observacoes, 1)";
+                      (:nome, :endereco, :latitude, :longitude, :distancia_km, :observacoes, 1)";
 
             $stmt = $this->db->prepare($query);
 
             $stmt->bindParam(':nome', $data['name']);
             $stmt->bindParam(':endereco', $data['address']);
+
+            // Coordenadas GPS (opcionais)
+            $latitude = isset($data['latitude']) ? $data['latitude'] : null;
+            $longitude = isset($data['longitude']) ? $data['longitude'] : null;
+            $stmt->bindValue(':latitude', $latitude, $latitude === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            $stmt->bindValue(':longitude', $longitude, $longitude === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+
             $stmt->bindParam(':distancia_km', $data['distance']);
             $stmt->bindParam(':observacoes', $data['notes']);
 
@@ -92,6 +102,14 @@ class DestinationController {
             if (isset($data['distance'])) {
                 $updates[] = "distancia_km = :distancia_km";
                 $params[':distancia_km'] = $data['distance'];
+            }
+            if (isset($data['latitude'])) {
+                $updates[] = "latitude = :latitude";
+                $params[':latitude'] = $data['latitude'];
+            }
+            if (isset($data['longitude'])) {
+                $updates[] = "longitude = :longitude";
+                $params[':longitude'] = $data['longitude'];
             }
 
             if (empty($updates)) {
