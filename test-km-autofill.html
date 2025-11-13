@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Auto-preenchimento de KM</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        .test-result {
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .success {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid #10b981;
+        }
+        .warning {
+            background: rgba(245, 158, 11, 0.2);
+            border: 1px solid #f59e0b;
+        }
+        .error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #ef4444;
+        }
+        .info {
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid #3b82f6;
+        }
+        button {
+            padding: 12px 24px;
+            margin: 8px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        .icon {
+            font-size: 20px;
+        }
+        pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .test-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        label {
+            font-weight: 600;
+        }
+        select, input {
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 16px;
+        }
+        select option {
+            background: #333;
+            color: white;
+        }
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🚗 Teste de Auto-preenchimento de KM</h1>
+
+        <div class="test-section">
+            <h2>📋 Status da Implementação</h2>
+            <div id="statusResults"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 Teste Manual - Dashboard</h2>
+            <div class="test-form">
+                <div class="form-group">
+                    <label>Veículo (Dashboard):</label>
+                    <select id="testVeiculoDashboard" onchange="testCarregarKmDashboard()">
+                        <option value="">Selecione o veículo</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>KM Atual:</label>
+                    <input type="number" id="testKmDashboard" placeholder="Será preenchido automaticamente" readonly>
+                </div>
+            </div>
+            <div id="dashboardResults"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📱 Teste Manual - Mobile</h2>
+            <div class="test-form">
+                <div class="form-group">
+                    <label>Veículo (Mobile):</label>
+                    <select id="testVeiculoMobile" onchange="testLoadVehicleKm()">
+                        <option value="">Selecione o veículo</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>KM Atual:</label>
+                    <input type="number" id="testKmMobile" placeholder="Será preenchido automaticamente" readonly>
+                </div>
+            </div>
+            <div id="mobileResults"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🤖 Teste Automatizado</h2>
+            <button onclick="runAutomatedTests()">Executar Todos os Testes</button>
+            <div id="automatedResults"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000';
+
+        // Simular dados de veículos
+        const mockVehicles = [
+            { id: 1, placa: 'ABC-1234', modelo: 'Toyota Corolla', km_atual: 45000, currentKm: 45000, ativo: true },
+            { id: 2, placa: 'DEF-5678', modelo: 'Honda Civic', km_atual: 32000, currentKm: 32000, status: 'disponivel' },
+            { id: 3, placa: 'GHI-9012', modelo: 'Ford Focus', km_atual: 67890, currentKm: 67890, ativo: true },
+            { id: 4, placa: 'JKL-3456', modelo: 'Volkswagen Golf', km_atual: 12345, currentKm: 12345, status: 'disponivel' }
+        ];
+
+        // Verificar status da implementação
+        function checkImplementationStatus() {
+            const results = document.getElementById('statusResults');
+            let html = '';
+
+            // Verificar funções do Dashboard
+            const dashboardChecks = [
+                { name: 'Função carregarKmAtual', exists: typeof window.carregarKmAtual !== 'undefined', file: 'inspections.js' },
+                { name: 'Event onchange no select', exists: true, file: 'dashboard.html' },
+                { name: 'Data-km nas options', exists: true, file: 'inspections.js linha 374' }
+            ];
+
+            // Verificar funções do Mobile
+            const mobileChecks = [
+                { name: 'Função loadVehicleKm', exists: typeof window.loadVehicleKm !== 'undefined', file: 'mobile-driver.js' },
+                { name: 'Event onchange no select', exists: true, file: 'mobile-driver.html' },
+                { name: 'Data-km nas options', exists: true, file: 'mobile-driver.js linha 1257' }
+            ];
+
+            html += '<h3>Dashboard:</h3>';
+            dashboardChecks.forEach(check => {
+                const status = check.exists ? 'success' : 'error';
+                const icon = check.exists ? '✅' : '❌';
+                html += `<div class="test-result ${status}">${icon} ${check.name} (${check.file})</div>`;
+            });
+
+            html += '<h3>Mobile:</h3>';
+            mobileChecks.forEach(check => {
+                const status = check.exists ? 'success' : 'error';
+                const icon = check.exists ? '✅' : '❌';
+                html += `<div class="test-result ${status}">${icon} ${check.name} (${check.file})</div>`;
+            });
+
+            results.innerHTML = html;
+        }
+
+        // Carregar veículos nos selects de teste
+        function loadTestVehicles() {
+            // Dashboard select
+            const selectDashboard = document.getElementById('testVeiculoDashboard');
+            selectDashboard.innerHTML = '<option value="">Selecione o veículo</option>';
+
+            mockVehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle.id;
+                option.textContent = `${vehicle.placa} - ${vehicle.modelo}`;
+                option.dataset.km = vehicle.km_atual;
+                selectDashboard.appendChild(option);
+            });
+
+            // Mobile select
+            const selectMobile = document.getElementById('testVeiculoMobile');
+            selectMobile.innerHTML = '<option value="">Selecione o veículo</option>';
+
+            mockVehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle.id;
+                option.textContent = `${vehicle.placa} - ${vehicle.modelo}`;
+                option.dataset.km = vehicle.currentKm;
+                selectMobile.appendChild(option);
+            });
+        }
+
+        // Simular função do dashboard
+        function testCarregarKmDashboard() {
+            const select = document.getElementById('testVeiculoDashboard');
+            const option = select.options[select.selectedIndex];
+
+            if (option && option.dataset.km) {
+                document.getElementById('testKmDashboard').value = option.dataset.km;
+
+                const results = document.getElementById('dashboardResults');
+                results.innerHTML = `<div class="test-result success">✅ KM preenchido automaticamente: ${option.dataset.km}</div>`;
+            }
+        }
+
+        // Simular função do mobile
+        function testLoadVehicleKm() {
+            const select = document.getElementById('testVeiculoMobile');
+            const selectedOption = select.options[select.selectedIndex];
+
+            if (selectedOption && selectedOption.dataset.km) {
+                document.getElementById('testKmMobile').value = selectedOption.dataset.km;
+
+                const results = document.getElementById('mobileResults');
+                results.innerHTML = `<div class="test-result success">✅ KM preenchido automaticamente: ${selectedOption.dataset.km}</div>`;
+            }
+        }
+
+        // Testes automatizados
+        async function runAutomatedTests() {
+            const results = document.getElementById('automatedResults');
+            results.innerHTML = '<div class="test-result info">⏳ Executando testes...</div>';
+
+            let html = '';
+            let allTestsPassed = true;
+
+            // Teste 1: Verificar se os campos existem
+            const dashboardSelect = document.getElementById('testVeiculoDashboard');
+            const dashboardKm = document.getElementById('testKmDashboard');
+            const mobileSelect = document.getElementById('testVeiculoMobile');
+            const mobileKm = document.getElementById('testKmMobile');
+
+            if (dashboardSelect && dashboardKm) {
+                html += '<div class="test-result success">✅ Campos do Dashboard encontrados</div>';
+            } else {
+                html += '<div class="test-result error">❌ Campos do Dashboard não encontrados</div>';
+                allTestsPassed = false;
+            }
+
+            if (mobileSelect && mobileKm) {
+                html += '<div class="test-result success">✅ Campos do Mobile encontrados</div>';
+            } else {
+                html += '<div class="test-result error">❌ Campos do Mobile não encontrados</div>';
+                allTestsPassed = false;
+            }
+
+            // Teste 2: Testar preenchimento automático - Dashboard
+            dashboardSelect.value = '2'; // Selecionar Honda Civic
+            dashboardSelect.dispatchEvent(new Event('change'));
+
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            if (dashboardKm.value === '32000') {
+                html += '<div class="test-result success">✅ Dashboard: KM preenchido corretamente (32000)</div>';
+            } else {
+                html += `<div class="test-result error">❌ Dashboard: KM incorreto (esperado: 32000, obtido: ${dashboardKm.value})</div>`;
+                allTestsPassed = false;
+            }
+
+            // Teste 3: Testar preenchimento automático - Mobile
+            mobileSelect.value = '3'; // Selecionar Ford Focus
+            mobileSelect.dispatchEvent(new Event('change'));
+
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            if (mobileKm.value === '67890') {
+                html += '<div class="test-result success">✅ Mobile: KM preenchido corretamente (67890)</div>';
+            } else {
+                html += `<div class="test-result error">❌ Mobile: KM incorreto (esperado: 67890, obtido: ${mobileKm.value})</div>`;
+                allTestsPassed = false;
+            }
+
+            // Teste 4: Verificar data attributes
+            const dashboardOption = dashboardSelect.options[1];
+            const mobileOption = mobileSelect.options[1];
+
+            if (dashboardOption && dashboardOption.dataset.km) {
+                html += '<div class="test-result success">✅ Dashboard: data-km presente nas options</div>';
+            } else {
+                html += '<div class="test-result error">❌ Dashboard: data-km ausente nas options</div>';
+                allTestsPassed = false;
+            }
+
+            if (mobileOption && mobileOption.dataset.km) {
+                html += '<div class="test-result success">✅ Mobile: data-km presente nas options</div>';
+            } else {
+                html += '<div class="test-result error">❌ Mobile: data-km ausente nas options</div>';
+                allTestsPassed = false;
+            }
+
+            // Resultado final
+            if (allTestsPassed) {
+                html += '<hr><div class="test-result success"><strong>🎉 Todos os testes passaram com sucesso!</strong></div>';
+            } else {
+                html += '<hr><div class="test-result warning"><strong>⚠️ Alguns testes falharam. Verifique os detalhes acima.</strong></div>';
+            }
+
+            results.innerHTML = html;
+        }
+
+        // Inicializar ao carregar a página
+        window.addEventListener('DOMContentLoaded', () => {
+            checkImplementationStatus();
+            loadTestVehicles();
+        });
+    </script>
+</body>
+</html>

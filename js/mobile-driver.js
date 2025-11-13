@@ -20,6 +20,11 @@ let isOfflineMode = !navigator.onLine;
 let pendingCount = 0;
 let offlineIndicatorUpdater = null;
 
+// Variáveis para inspeção
+let templatesArray = [];
+let checklistItens = [];
+let currentInspectionType = null;
+
 // ===========================
 // FUNÇÕES GPS
 // ===========================
@@ -452,6 +457,14 @@ document.addEventListener('DOMContentLoaded', async function() {
     window.closeExpenseModal = closeExpenseModal;
     window.toggleExpenseFields = toggleExpenseFields;
     window.submitExpense = submitExpense;
+
+    // Funções de inspeção
+    window.openInspectionModal = openInspectionModal;
+    window.closeInspectionModal = closeInspectionModal;
+    window.loadInspectionTemplate = loadInspectionTemplate;
+    window.loadVehicleKm = loadVehicleKm;
+    window.updateInspectionStatus = updateInspectionStatus;
+    window.submitInspection = submitInspection;
     // NÃO definir window.logout - manter a função do auth.js
 });
 
@@ -849,7 +862,28 @@ function populateVehicles() {
             option.style.backgroundColor = '#3a3228';  // Fundo escuro amarelado
         }
 
-        option.textContent = `${vehicle.plate} - ${vehicle.model}${maintenanceIndicator}`;
+        // Adicionar indicador visual de status de inspeção
+        let inspectionIndicator = '';
+        // Buscar status de inspeção de forma assíncrona (se disponível)
+        if (typeof apiCheckInspectionCompliance === 'function' && !isOfflineMode) {
+            apiCheckInspectionCompliance(vehicle.id).then(response => {
+                if (response && response.success) {
+                    if (!response.compliant) {
+                        if (response.status === 'overdue' || response.status === 'never_inspected') {
+                            option.textContent = `${vehicle.plate} - ${vehicle.model}${maintenanceIndicator} 🔴 INSPEÇÃO VENCIDA`;
+                            option.style.color = '#ff6b6b';
+                            option.style.backgroundColor = '#3a2828';
+                        } else if (response.status === 'due_soon') {
+                            option.textContent = `${vehicle.plate} - ${vehicle.model}${maintenanceIndicator} 🟡 Inspeção próxima`;
+                        }
+                    } else {
+                        option.textContent = `${vehicle.plate} - ${vehicle.model}${maintenanceIndicator} 🟢`;
+                    }
+                }
+            }).catch(err => console.error('Erro ao verificar inspeção:', err));
+        }
+
+        option.textContent = `${vehicle.plate} - ${vehicle.model}${maintenanceIndicator}${inspectionIndicator}`;
         select.appendChild(option);
     });
 }
@@ -881,6 +915,57 @@ async function createNewRoute() {
     if (!vehicleId || !destinationId || !kmDeparture) {
         alert('Por favor, preencha todos os campos');
         return;
+    }
+
+    // Verificar conformidade de inspeção antes de permitir uso do veículo
+    if (vehicleId && typeof apiCheckInspectionCompliance === 'function' && !isOfflineMode) {
+        try {
+            const complianceResponse = await apiCheckInspectionCompliance(vehicleId);
+            if (complianceResponse && complianceResponse.success) {
+                if (!complianceResponse.compliant) {
+                    // Veículo não está em conformidade com inspeção
+                    const vehicle = complianceResponse.vehicle;
+                    const message = complianceResponse.message;
+
+                    // Mostrar alerta e perguntar se deseja fazer inspeção
+                    const shouldInspect = confirm(
+                        `⚠️ ATENÇÃO: INSPEÇÃO VENCIDA!\n\n` +
+                        `Veículo: ${vehicle ? vehicle.placa : 'ID ' + vehicleId}\n` +
+                        `Status: ${message}\n\n` +
+                        `A inspeção semanal deste veículo está vencida. ` +
+                        `É obrigatório realizar a inspeção antes de usar o veículo.\n\n` +
+                        `Deseja realizar a inspeção agora?`
+                    );
+
+                    if (shouldInspect) {
+                        // Usuário quer fazer inspeção - abrir modal
+                        closeNewRouteModal();
+                        if (typeof openInspectionModal === 'function') {
+                            openInspectionModal();
+                            // Pré-selecionar o veículo
+                            setTimeout(() => {
+                                const inspectionVehicleSelect = document.getElementById('inspectionVehicle');
+                                if (inspectionVehicleSelect) {
+                                    inspectionVehicleSelect.value = vehicleId;
+                                    inspectionVehicleSelect.dispatchEvent(new Event('change'));
+                                }
+                            }, 100);
+                        }
+                        return;
+                    } else {
+                        // Usuário não quer fazer inspeção - cancelar rota
+                        showToast('Rota cancelada. Realize a inspeção antes de iniciar viagem.', 'warning');
+                        return;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao verificar conformidade de inspeção:', error);
+            // Em caso de erro na verificação, alertar mas permitir continuar
+            if (!confirm('Não foi possível verificar a inspeção do veículo. Deseja continuar mesmo assim?')) {
+                return;
+            }
+        }
     }
 
     try {
@@ -1165,6 +1250,365 @@ function toSqlDateTime(date) {
 }
 
 // ===========================
+// FUNÇÕES DE INSPEÇÃO
+// ===========================
+
+// Abrir modal de inspeção
+async function openInspectionModal() {
+    console.log('Abrindo modal de inspeção...');
+
+    // Limpar formulário
+    document.getElementById('inspectionForm').reset();
+    document.getElementById('checklistContainer').innerHTML =
+        '<div class="loading-checklist"><p>Selecione o tipo de inspeção para carregar o checklist...</p></div>';
+    document.getElementById('inspectionStatusSummary').style.display = 'none';
+
+    // Carregar templates se ainda não carregados
+    if (templatesArray.length === 0) {
+        await loadInspectionTemplates();
+    }
+
+    // Verificar se há rota ativa e preencher veículo
+    const activeRoutes = usageRecords.filter(u => u.status === 'em_uso');
+    if (activeRoutes.length > 0) {
+        const activeRoute = activeRoutes[0];
+        const vehicleSelect = document.getElementById('inspectionVehicle');
+        vehicleSelect.innerHTML = `<option value="${activeRoute.vehicleId}" selected>${activeRoute.vehiclePlate || 'Veículo da rota'}</option>`;
+        vehicleSelect.disabled = true;
+
+        // Preencher KM se disponível
+        if (activeRoute.departureKm) {
+            document.getElementById('inspectionKm').value = activeRoute.departureKm;
+        }
+    } else {
+        // Se não há rota ativa, carregar todos os veículos
+        await loadVehiclesForInspection();
+    }
+
+    // Preencher ID do motorista
+    document.getElementById('inspectionDriverId').value = currentDriver.id;
+
+    // Exibir modal
+    document.getElementById('inspectionModal').classList.add('active');
+}
+
+// Fechar modal de inspeção
+function closeInspectionModal() {
+    document.getElementById('inspectionModal').classList.remove('active');
+}
+
+// Carregar templates de inspeção
+async function loadInspectionTemplates() {
+    try {
+        const response = await fetch(`${API_URL}/inspections/templates`, {
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            templatesArray = data.data || [];
+            console.log(`${templatesArray.length} templates carregados`);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar templates:', error);
+        showToast('Erro ao carregar templates de inspeção', 'error');
+    }
+}
+
+// Carregar veículos para inspeção
+async function loadVehiclesForInspection() {
+    const select = document.getElementById('inspectionVehicle');
+    select.innerHTML = '<option value="">Selecione o veículo</option>';
+
+    for (const vehicle of vehicles) {
+        if (vehicle.ativo || vehicle.status === 'disponivel') {
+            const option = document.createElement('option');
+            option.value = vehicle.id;
+            // Adicionar KM atual como data attribute
+            option.dataset.km = vehicle.km_atual || vehicle.currentKm || 0;
+
+            // Texto base do veículo
+            let vehicleText = `${vehicle.placa || vehicle.plate} - ${vehicle.modelo || vehicle.model}`;
+
+            // Adicionar indicador visual de status de inspeção
+            if (typeof apiCheckInspectionCompliance === 'function' && !isOfflineMode) {
+                try {
+                    const response = await apiCheckInspectionCompliance(vehicle.id);
+                    if (response && response.success) {
+                        if (!response.compliant) {
+                            if (response.status === 'overdue' || response.status === 'never_inspected') {
+                                vehicleText += ' 🔴 INSPEÇÃO VENCIDA';
+                                option.style.color = '#ff6b6b';
+                                option.style.backgroundColor = '#3a2828';
+                            } else if (response.status === 'due_soon') {
+                                vehicleText += ' 🟡 Inspeção próxima';
+                                option.style.color = '#ffa94d';
+                                option.style.backgroundColor = '#3a3228';
+                            }
+                        } else {
+                            vehicleText += ' 🟢';
+                        }
+                    }
+                } catch (err) {
+                    console.error('Erro ao verificar inspeção:', err);
+                }
+            }
+
+            option.textContent = vehicleText;
+            select.appendChild(option);
+        }
+    }
+
+    select.disabled = false;
+}
+
+// Carregar KM do veículo selecionado
+function loadVehicleKm() {
+    const select = document.getElementById('inspectionVehicle');
+    const selectedOption = select.options[select.selectedIndex];
+
+    if (selectedOption && selectedOption.dataset.km) {
+        document.getElementById('inspectionKm').value = selectedOption.dataset.km;
+    }
+}
+
+// Carregar template de inspeção selecionado
+async function loadInspectionTemplate() {
+    const tipo = document.getElementById('inspectionType').value;
+
+    if (!tipo) {
+        document.getElementById('checklistContainer').innerHTML =
+            '<div class="loading-checklist"><p>Selecione o tipo de inspeção...</p></div>';
+        document.getElementById('inspectionStatusSummary').style.display = 'none';
+        return;
+    }
+
+    currentInspectionType = tipo;
+
+    // Buscar template correto
+    const template = templatesArray.find(t => (t.tipo || t.type) === tipo);
+
+    if (!template) {
+        document.getElementById('checklistContainer').innerHTML =
+            '<div class="loading-checklist"><p>Template não encontrado!</p></div>';
+        return;
+    }
+
+    document.getElementById('inspectionTemplateId').value = template.id;
+
+    try {
+        // Buscar itens do template
+        const response = await fetch(`${API_URL}/inspections/templates/${template.id}`, {
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        if (data.success && (data.data.itens || data.data.items)) {
+            checklistItens = data.data.itens || data.data.items;
+            renderInspectionChecklist();
+        } else {
+            document.getElementById('checklistContainer').innerHTML =
+                '<div class="loading-checklist"><p>Erro ao carregar checklist</p></div>';
+        }
+    } catch (error) {
+        console.error('Erro ao carregar template:', error);
+        document.getElementById('checklistContainer').innerHTML =
+            '<div class="loading-checklist"><p>Erro ao carregar checklist</p></div>';
+    }
+}
+
+// Renderizar checklist de inspeção
+function renderInspectionChecklist() {
+    const container = document.getElementById('checklistContainer');
+
+    if (checklistItens.length === 0) {
+        container.innerHTML = '<div class="loading-checklist"><p>Nenhum item no template</p></div>';
+        return;
+    }
+
+    // Agrupar por categoria
+    const categorias = {};
+    checklistItens.forEach(item => {
+        const categoria = item.categoria || item.category;
+        if (!categorias[categoria]) {
+            categorias[categoria] = [];
+        }
+        categorias[categoria].push(item);
+    });
+
+    let html = '<div class="checklist-mobile">';
+
+    Object.keys(categorias).forEach(categoria => {
+        html += `
+            <div class="checklist-categoria">
+                <h4 class="categoria-titulo">${formatarCategoria(categoria)}</h4>
+                <div class="checklist-itens">
+        `;
+
+        categorias[categoria].forEach(item => {
+            const nomeItem = item.item || item.nome || '';
+            const descricaoItem = item.description || item.descricao || '';
+            const obrigatorio = item.obrigatorio || item.required;
+
+            let textoItem = nomeItem || descricaoItem || 'Item sem descrição';
+
+            html += `
+                <div class="checklist-item" data-item-id="${item.id}">
+                    <div class="item-info">
+                        <span class="item-nome">${textoItem}</span>
+                        ${obrigatorio ? '<span class="badge-required">*</span>' : ''}
+                    </div>
+                    <div class="item-controles">
+                        <select class="item-status" onchange="updateInspectionStatus()">
+                            <option value="conforme">Conforme</option>
+                            <option value="nao_conforme">Não Conforme</option>
+                            <option value="alerta">Alerta</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+
+    // Mostrar resumo de status
+    document.getElementById('inspectionStatusSummary').style.display = 'flex';
+    updateInspectionStatus();
+}
+
+// Atualizar resumo de status da inspeção
+function updateInspectionStatus() {
+    const itens = document.querySelectorAll('.checklist-item');
+    let conformes = 0;
+    let naoConformes = 0;
+    let alertas = 0;
+
+    itens.forEach(item => {
+        const status = item.querySelector('.item-status').value;
+        if (status === 'conforme') conformes++;
+        else if (status === 'nao_conforme') naoConformes++;
+        else if (status === 'alerta') alertas++;
+    });
+
+    document.getElementById('itemsConformes').textContent = conformes;
+    document.getElementById('itemsNaoConformes').textContent = naoConformes;
+    document.getElementById('itemsAlertas').textContent = alertas;
+}
+
+// Formatar data e hora para SQL
+function formatDateTimeForSQL(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+// Enviar inspeção
+async function submitInspection() {
+    try {
+        // Validar campos obrigatórios
+        const tipo = document.getElementById('inspectionType').value;
+        const veiculoId = document.getElementById('inspectionVehicle').value;
+        const motoristaId = document.getElementById('inspectionDriverId').value;
+        const templateId = document.getElementById('inspectionTemplateId').value;
+        const kmVeiculo = document.getElementById('inspectionKm').value;
+        const observacoesGerais = document.getElementById('inspectionObservations').value;
+
+        if (!tipo || !veiculoId || !kmVeiculo) {
+            showToast('Preencha todos os campos obrigatórios', 'error');
+            return;
+        }
+
+        // Coletar itens do checklist
+        const itensInspecao = [];
+        document.querySelectorAll('.checklist-item').forEach(itemDiv => {
+            const itemId = itemDiv.dataset.itemId;
+            const status = itemDiv.querySelector('.item-status').value;
+
+            itensInspecao.push({
+                itemTemplateId: parseInt(itemId),
+                status: status,
+                observation: null
+            });
+        });
+
+        // Montar payload
+        const payload = {
+            vehicleId: parseInt(veiculoId),
+            driverId: parseInt(motoristaId),
+            templateId: parseInt(templateId),
+            type: tipo,
+            inspectionDate: formatDateTimeForSQL(new Date()),
+            km: parseInt(kmVeiculo),
+            generalObservations: observacoesGerais || null,
+            items: itensInspecao
+        };
+
+        console.log('Enviando inspeção:', payload);
+
+        // Enviar para o backend
+        const response = await fetch(`${API_URL}/inspections`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showToast('Inspeção salva com sucesso!', 'success');
+            closeInspectionModal();
+        } else {
+            showToast(data.message || 'Erro ao salvar inspeção', 'error');
+        }
+
+    } catch (error) {
+        console.error('Erro ao salvar inspeção:', error);
+
+        // Se offline, salvar localmente
+        if (!navigator.onLine) {
+            // TODO: Implementar salvamento offline
+            showToast('Modo offline: inspeção será enviada quando conexão voltar', 'warning');
+            closeInspectionModal();
+        } else {
+            showToast('Erro ao salvar inspeção', 'error');
+        }
+    }
+}
+
+// Formatar nome da categoria
+function formatarCategoria(categoria) {
+    const categorias = {
+        'pneus': 'Pneus',
+        'fluidos': 'Fluidos',
+        'seguranca': 'Segurança',
+        'motor': 'Motor',
+        'eletrica': 'Sistema Elétrico',
+        'documentos': 'Documentação',
+        'carroceria': 'Carroceria',
+        'interior': 'Interior'
+    };
+
+    return categorias[categoria] || categoria.charAt(0).toUpperCase() + categoria.slice(1);
+}
+
+// ===========================
 // SPEED DIAL FAB
 // ===========================
 
@@ -1202,6 +1646,8 @@ function initSpeedDialFAB() {
                 openNewRouteModal();
             } else if (action === 'expense') {
                 openExpenseModal();
+            } else if (action === 'inspection') {
+                openInspectionModal();
             }
         });
     });
@@ -1224,7 +1670,7 @@ function openExpenseModal() {
     form.reset();
 
     // Auto-preencher veículo da rota ativa
-    populateExpenseVehicle();
+    await populateExpenseVehicle();
 
     // Auto-preencher data/hora atual
     const now = new Date();
@@ -1254,7 +1700,7 @@ function closeExpenseModal() {
     }
 }
 
-function populateExpenseVehicle() {
+async function populateExpenseVehicle() {
     const vehicleSelect = document.getElementById('expenseVehicle');
     if (!vehicleSelect) return;
 
@@ -1270,9 +1716,31 @@ function populateExpenseVehicle() {
         const vehicle = vehicles.find(v => v.id === activeRoute.vehicleId);
 
         if (vehicle) {
+            let vehicleText = `${vehicle.plate} - ${vehicle.brand} ${vehicle.model}`;
+
+            // Adicionar indicador visual de status de inspeção
+            if (typeof apiCheckInspectionCompliance === 'function' && !isOfflineMode) {
+                try {
+                    const response = await apiCheckInspectionCompliance(vehicle.id);
+                    if (response && response.success) {
+                        if (!response.compliant) {
+                            if (response.status === 'overdue' || response.status === 'never_inspected') {
+                                vehicleText += ' 🔴';
+                            } else if (response.status === 'due_soon') {
+                                vehicleText += ' 🟡';
+                            }
+                        } else {
+                            vehicleText += ' 🟢';
+                        }
+                    }
+                } catch (err) {
+                    console.error('Erro ao verificar inspeção:', err);
+                }
+            }
+
             vehicleSelect.innerHTML = `
                 <option value="${vehicle.id}" selected>
-                    ${vehicle.plate} - ${vehicle.brand} ${vehicle.model}
+                    ${vehicleText}
                 </option>
             `;
             vehicleSelect.disabled = true;

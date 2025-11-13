@@ -502,6 +502,29 @@ async function apiGetVehicleLocation(vehicleId) {
 }
 
 // ================================================================
+// Inspeções - Compliance
+// ================================================================
+
+/**
+ * Verificar conformidade de inspeção de um veículo
+ * @param {number} vehicleId - ID do veículo
+ * @returns {Promise<Object>} Dados de conformidade
+ */
+async function apiCheckInspectionCompliance(vehicleId) {
+    const response = await apiRequest(`/inspections/compliance/${vehicleId}`);
+    return response;
+}
+
+/**
+ * Obter status de inspeção de todos os veículos
+ * @returns {Promise<Object>} Status de inspeção da frota
+ */
+async function apiGetVehicleInspectionStatus() {
+    const response = await apiRequest('/inspections/vehicle-status');
+    return response;
+}
+
+// ================================================================
 // Funções Utilitárias
 // ================================================================
 

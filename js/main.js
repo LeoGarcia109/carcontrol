@@ -1491,6 +1491,52 @@ async function addUsageRecord() {
     const kmDeparture = parseInt(document.getElementById('usageKmDeparture').value);
     const destinationId = parseInt(document.getElementById('usageDestination').value);
 
+    // Verificar conformidade de inspeção antes de permitir uso do veículo
+    if (vehicleId && typeof apiCheckInspectionCompliance === 'function') {
+        try {
+            const complianceResponse = await apiCheckInspectionCompliance(vehicleId);
+            if (complianceResponse && complianceResponse.success) {
+                if (!complianceResponse.compliant) {
+                    // Veículo não está em conformidade com inspeção
+                    const vehicle = complianceResponse.vehicle;
+                    const message = complianceResponse.message;
+
+                    // Mostrar alerta e perguntar se deseja continuar mesmo assim
+                    const shouldContinue = confirm(
+                        `⚠️ ATENÇÃO: INSPEÇÃO VENCIDA!\n\n` +
+                        `Veículo: ${vehicle ? vehicle.placa : 'ID ' + vehicleId}\n` +
+                        `Status: ${message}\n\n` +
+                        `A inspeção semanal deste veículo está vencida. ` +
+                        `É altamente recomendado realizar a inspeção antes de usar o veículo.\n\n` +
+                        `Deseja continuar mesmo assim?`
+                    );
+
+                    if (!shouldContinue) {
+                        // Usuário cancelou - abrir modal de inspeção
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.classList.remove('loading');
+                            submitBtn.textContent = originalText || 'Salvar';
+                        }
+
+                        // Fechar modal de uso e abrir modal de inspeção
+                        closeModal('usageModal');
+                        if (typeof openInspectionForVehicle === 'function') {
+                            openInspectionForVehicle(vehicleId);
+                        }
+                        return;
+                    }
+
+                    // Se continuou, registrar que foi alertado mas prosseguiu
+                    console.warn(`Uso de veículo ${vehicleId} iniciado apesar de inspeção vencida`);
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao verificar conformidade de inspeção:', error);
+            // Em caso de erro, permitir uso mas registrar o erro
+        }
+    }
+
     // Validações
     if (!destinationId) {
         showAlert('Por favor, selecione um destino', 'danger');
@@ -3504,7 +3550,7 @@ function loadAlerts() {
         const lastMaintenance = maintenanceRecords
             .filter(r => r.vehicleId === vehicle.id)
             .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
-        
+
         if (lastMaintenance) {
             const kmSinceMaintenance = vehicle.currentKm - lastMaintenance.km;
             if (kmSinceMaintenance > 10000) { // Mais de 10.000 km desde última manutenção
@@ -3524,6 +3570,59 @@ function loadAlerts() {
             });
         }
     });
+
+    // Verificar inspeções veiculares obrigatórias (semanal)
+    // Buscar status de inspeção de forma assíncrona
+    if (typeof apiGetVehicleInspectionStatus === 'function') {
+        apiGetVehicleInspectionStatus().then(response => {
+            if (response && response.success && response.vehicles) {
+                response.vehicles.forEach(vehicleInspection => {
+                    if (vehicleInspection.status === 'overdue') {
+                        alerts.push({
+                            type: 'danger',
+                            title: 'Inspeção Vencida',
+                            message: `${vehicleInspection.placa} - Inspeção vencida há ${vehicleInspection.daysOverdue} dia(s). Realize a inspeção imediatamente!`,
+                            date: today,
+                            vehicleId: vehicleInspection.id
+                        });
+                    } else if (vehicleInspection.status === 'due_soon') {
+                        alerts.push({
+                            type: 'warning',
+                            title: 'Inspeção Próxima do Vencimento',
+                            message: `${vehicleInspection.placa} - Inspeção vence em ${vehicleInspection.daysRemaining} dia(s).`,
+                            date: today,
+                            vehicleId: vehicleInspection.id
+                        });
+                    } else if (vehicleInspection.status === 'never_inspected') {
+                        alerts.push({
+                            type: 'danger',
+                            title: 'Veículo Sem Inspeção',
+                            message: `${vehicleInspection.placa} - Este veículo nunca foi inspecionado. Realize a primeira inspeção!`,
+                            date: today,
+                            vehicleId: vehicleInspection.id
+                        });
+                    }
+                });
+
+                // Re-renderizar alertas com os novos dados de inspeção
+                const container = document.getElementById('alertsContainer');
+                if (container && alerts.length > 0) {
+                    container.innerHTML = alerts.map(alert => {
+                        const actionButton = alert.vehicleId ?
+                            `<button class="btn btn-sm btn-primary ms-2" onclick="openInspectionForVehicle(${alert.vehicleId})">Realizar Inspeção</button>` : '';
+                        return `
+                            <div class="alert alert-${alert.type}">
+                                <strong>${alert.title}:</strong> ${alert.message}
+                                ${actionButton}
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
+        }).catch(error => {
+            console.error('Erro ao verificar status de inspeção:', error);
+        });
+    }
     
     // Renderizar alertas
     if (alerts.length === 0) {
@@ -3593,6 +3692,44 @@ function updateDashboardStats() {
         kpiDashboardTotalDrivers.textContent = totalDrivers;
         kpiDashboardActiveDrivers.textContent = activeDrivers;
         kpiDashboardInactiveDrivers.textContent = inactiveDrivers;
+    }
+
+    // KPI 5: Conformidade de Inspeções Semanais
+    const kpiInspectionCompliance = document.getElementById('kpiInspectionCompliance');
+    const kpiInspectionOk = document.getElementById('kpiInspectionOk');
+    const kpiInspectionDueSoon = document.getElementById('kpiInspectionDueSoon');
+    const kpiInspectionOverdue = document.getElementById('kpiInspectionOverdue');
+
+    if (kpiInspectionCompliance && typeof apiGetVehicleInspectionStatus === 'function') {
+        // Buscar status de inspeção de forma assíncrona
+        apiGetVehicleInspectionStatus().then(response => {
+            if (response && response.success) {
+                const stats = response.statistics;
+                const compliance = response.compliancePercentage;
+
+                // Atualizar KPIs
+                kpiInspectionCompliance.textContent = compliance + '%';
+                kpiInspectionOk.textContent = stats.compliant + ' Em dia';
+                kpiInspectionDueSoon.textContent = stats.dueSoon + ' Vence breve';
+                kpiInspectionOverdue.textContent = (stats.overdue + stats.neverInspected) + ' Vencidas';
+
+                // Mudar cor do percentual baseado no valor
+                if (compliance >= 80) {
+                    kpiInspectionCompliance.style.color = '#10b981'; // Verde
+                } else if (compliance >= 50) {
+                    kpiInspectionCompliance.style.color = '#f59e0b'; // Amarelo
+                } else {
+                    kpiInspectionCompliance.style.color = '#ef4444'; // Vermelho
+                }
+            }
+        }).catch(error => {
+            console.error('Erro ao buscar status de inspeção:', error);
+            // Valores padrão em caso de erro
+            kpiInspectionCompliance.textContent = '0%';
+            kpiInspectionOk.textContent = '0 Em dia';
+            kpiInspectionDueSoon.textContent = '0 Vence breve';
+            kpiInspectionOverdue.textContent = '0 Vencidas';
+        });
     }
 
     // Atualizar todos os gráficos

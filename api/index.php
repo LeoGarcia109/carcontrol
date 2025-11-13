@@ -93,7 +93,8 @@ try {
                 'destinations' => '/destinations (GET, POST, PUT, DELETE), /destinations/geocode (POST)',
                 'dashboard' => '/dashboard/stats',
                 'gps' => '/gps/active, /gps/history/{id}, /gps/update, /gps/stop, /gps/vehicle/{id}',
-                'routes' => '/routes/calculate (POST)'
+                'routes' => '/routes/calculate (POST)',
+                'inspections' => '/inspections (GET, POST), /inspections/{id} (GET, DELETE), /inspections/templates, /inspections/pending, /inspections/stats, /inspections/vehicle/{id}'
             ]
         ]);
     }
@@ -527,6 +528,84 @@ try {
             sendError('Método não permitido', 405);
         }
         exit();
+    }
+
+    // ============================================================
+    // ROTAS DE INSPEÇÕES
+    // ============================================================
+    if ($uriParts[0] === 'inspections') {
+        require_once 'controllers/InspectionController.php';
+        $inspectionController = new InspectionController($db);
+
+        // GET /inspections/templates
+        if (isset($uriParts[1]) && $uriParts[1] === 'templates') {
+            if ($method === 'GET') {
+                // GET /inspections/templates/{id}
+                if (isset($uriParts[2]) && is_numeric($uriParts[2])) {
+                    $inspectionController->getTemplate($uriParts[2]);
+                } else {
+                    // GET /inspections/templates
+                    $inspectionController->getTemplates();
+                }
+            } else {
+                sendError('Método não permitido', 405);
+            }
+            exit();
+        }
+
+        // GET /inspections/pending
+        if (isset($uriParts[1]) && $uriParts[1] === 'pending') {
+            if ($method === 'GET') {
+                $inspectionController->getPending();
+            } else {
+                sendError('Método não permitido', 405);
+            }
+            exit();
+        }
+
+        // GET /inspections/stats
+        if (isset($uriParts[1]) && $uriParts[1] === 'stats') {
+            if ($method === 'GET') {
+                $inspectionController->getStats();
+            } else {
+                sendError('Método não permitido', 405);
+            }
+            exit();
+        }
+
+        // GET /inspections/vehicle/{id}
+        if (isset($uriParts[1]) && $uriParts[1] === 'vehicle' && isset($uriParts[2])) {
+            if ($method === 'GET') {
+                $inspectionController->getByVehicle($uriParts[2]);
+            } else {
+                sendError('Método não permitido', 405);
+            }
+            exit();
+        }
+
+        // GET /inspections/{id} ou DELETE /inspections/{id}
+        if (isset($uriParts[1]) && is_numeric($uriParts[1])) {
+            if ($method === 'GET') {
+                $inspectionController->getById($uriParts[1]);
+            } elseif ($method === 'DELETE') {
+                $inspectionController->delete($uriParts[1]);
+            } else {
+                sendError('Método não permitido', 405);
+            }
+            exit();
+        }
+
+        // GET /inspections ou POST /inspections
+        if (count($uriParts) === 1) {
+            if ($method === 'GET') {
+                $inspectionController->getAll();
+            } elseif ($method === 'POST') {
+                $inspectionController->create($input);
+            } else {
+                sendError('Método não permitido', 405);
+            }
+            exit();
+        }
     }
 
     // Rota não encontrada

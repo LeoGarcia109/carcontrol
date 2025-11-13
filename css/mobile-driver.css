@@ -1192,3 +1192,235 @@ select::-webkit-dropdown-list {
         height: 14px;
     }
 }
+
+/* ===== INSPECTION MODULE STYLES ===== */
+
+/* Inspection Checklist Container */
+.inspection-checklist {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 0.5rem;
+    background: var(--glass-bg);
+    border-radius: 12px;
+    border: 1px solid var(--glass-border);
+}
+
+/* Custom scrollbar for checklist */
+.inspection-checklist::-webkit-scrollbar {
+    width: 6px;
+}
+
+.inspection-checklist::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+}
+
+.inspection-checklist::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 3px;
+}
+
+/* Category Group */
+.category-group {
+    margin-bottom: 1.5rem;
+}
+
+.category-group:last-child {
+    margin-bottom: 0;
+}
+
+.category-title {
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.category-title::before {
+    content: '';
+    width: 4px;
+    height: 18px;
+    background: var(--primary-color);
+    border-radius: 2px;
+}
+
+/* Checklist Items */
+.checklist-items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.checklist-item {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
+}
+
+.checklist-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.item-name {
+    flex: 1;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.item-status {
+    min-width: 120px;
+}
+
+.item-status select {
+    width: 100%;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+/* Status-specific styling */
+.checklist-item[data-status="conforme"] {
+    border-left: 3px solid #10b981;
+}
+
+.checklist-item[data-status="nao_conforme"] {
+    border-left: 3px solid #ef4444;
+}
+
+.checklist-item[data-status="alerta"] {
+    border-left: 3px solid #f59e0b;
+}
+
+.checklist-item[data-status="nao_aplicavel"] {
+    border-left: 3px solid #6b7280;
+    opacity: 0.7;
+}
+
+/* Observations Field */
+.item-observations {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.item-observations textarea {
+    width: 100%;
+    padding: 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    resize: vertical;
+    min-height: 60px;
+}
+
+/* Status Summary */
+.inspection-status-summary {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--glass-bg);
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+}
+
+.status-counts {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.status-count {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    font-size: 0.875rem;
+}
+
+.status-count .count {
+    font-weight: 600;
+}
+
+.status-count.conforme {
+    color: #10b981;
+}
+
+.status-count.nao-conforme {
+    color: #ef4444;
+}
+
+.status-count.alerta {
+    color: #f59e0b;
+}
+
+.status-count.na {
+    color: #6b7280;
+}
+
+/* Calculated Status Display */
+.calculated-status {
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.calculated-status.aprovado {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.calculated-status.aprovado-restricao {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.calculated-status.reprovado {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Responsive adjustments for small screens */
+@media (max-width: 380px) {
+    .inspection-checklist {
+        max-height: 350px;
+    }
+
+    .item-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    .item-status {
+        width: 100%;
+    }
+
+    .status-counts {
+        grid-template-columns: 1fr;
+    }
+}

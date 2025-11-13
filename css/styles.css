@@ -556,17 +556,28 @@ body::before {
     bottom: 90px;
     left: 16px;
     right: 16px;
-    padding: 8px 12px;
+    padding: 10px 14px;
     text-align: center;
-    opacity: 0.6;
+    background: rgba(102, 126, 234, 0.15);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 12px;
     transition: all 0.3s ease;
 }
 
+.version-info:hover {
+    background: rgba(102, 126, 234, 0.25);
+    border-color: rgba(102, 126, 234, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
 .version-text {
-    font-size: 11px;
-    color: var(--text-light);
-    font-weight: 500;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.95);
+    font-weight: 600;
     letter-spacing: 0.5px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .sidebar.collapsed .version-info {
@@ -679,6 +690,20 @@ body::before {
     color: rgba(255, 255, 255, 0.9);
     margin: 0;
     font-weight: 500;
+}
+
+/* User Welcome Section */
+.user-welcome {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: nowrap;
+}
+
+.user-welcome p {
+    display: inline-block;
+    margin: 0;
+    white-space: nowrap;
 }
 
 /* === CONTENT SECTIONS === */
@@ -2840,4 +2865,573 @@ button.btn-icon-danger:hover {
         width: 100%;
         justify-content: center;
     }
+}
+
+/* ===================================
+   MÓDULO DE INSPEÇÕES
+   =================================== */
+
+/* Sistema de Tabs de Inspeções */
+.inspecoes-tabs {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.inspecao-tab-btn {
+    padding: 12px 24px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px 8px 0 0;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.inspecao-tab-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    transform: translateY(-2px);
+}
+
+.inspecao-tab-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* Painéis das tabs */
+.inspecoes-content {
+    position: relative;
+}
+
+.inspecao-tab-panel {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.inspecao-tab-panel.active {
+    display: block;
+}
+
+/* Seção Header */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.section-header h3 {
+    margin: 0;
+    color: #fff;
+    font-size: 20px;
+}
+
+/* Filtros */
+.filters-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.filters-row select,
+.filters-row input {
+    flex: 1;
+    min-width: 200px;
+}
+
+/* Modal Grande para Inspeções */
+.modal-large {
+    max-width: 900px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* Header da Inspeção */
+.inspecao-header {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Container do Checklist */
+.checklist-container {
+    max-height: 500px;
+    overflow-y: auto;
+    margin-bottom: 24px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.loading-checklist {
+    text-align: center;
+    padding: 40px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* Categorias do Checklist */
+.checklist-categorias {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.checklist-categoria {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.categoria-titulo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #667eea;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid rgba(102, 126, 234, 0.3);
+}
+
+/* Itens do Checklist */
+.checklist-itens {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.checklist-item {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s ease;
+}
+
+.checklist-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(102, 126, 234, 0.3);
+}
+
+.item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.item-descricao {
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    flex: 1;
+}
+
+.item-controles {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.item-status {
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 150px;
+}
+
+.item-status:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(102, 126, 234, 0.5);
+}
+
+.item-observacao {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: 13px;
+    min-width: 250px;
+}
+
+.item-observacao::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+/* Resumo do Status */
+.inspecao-status-summary {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(102, 126, 234, 0.3);
+}
+
+.inspecao-status-summary h4 {
+    color: #fff;
+    margin-bottom: 16px;
+    font-size: 16px;
+}
+
+.status-stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.status-stat {
+    flex: 1;
+    text-align: center;
+    padding: 16px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.status-stat.status-ok {
+    background: rgba(76, 175, 80, 0.1);
+    border-color: rgba(76, 175, 80, 0.3);
+}
+
+.status-stat.status-warning {
+    background: rgba(255, 152, 0, 0.1);
+    border-color: rgba(255, 152, 0, 0.3);
+}
+
+.status-stat.status-error {
+    background: rgba(244, 67, 54, 0.1);
+    border-color: rgba(244, 67, 54, 0.3);
+}
+
+.status-stat .stat-number {
+    display: block;
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+}
+
+.status-stat .stat-label {
+    display: block;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-result {
+    text-align: center;
+    padding: 12px;
+    font-size: 16px;
+}
+
+.status-result strong {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Modal Actions */
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Detalhes da Inspeção (Visualização) */
+.inspecao-info {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.info-row {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.info-row:last-child {
+    margin-bottom: 0;
+}
+
+.info-item {
+    flex: 1;
+    min-width: 200px;
+}
+
+.info-item.full-width {
+    flex: 100%;
+}
+
+.info-item strong {
+    display: block;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.info-item p {
+    margin: 0;
+    color: #fff;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.stats-row {
+    justify-content: center;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-box {
+    text-align: center;
+    padding: 16px 24px;
+    border-radius: 8px;
+    min-width: 120px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-box.stat-success {
+    background: rgba(76, 175, 80, 0.1);
+    border-color: rgba(76, 175, 80, 0.3);
+}
+
+.stat-box.stat-warning {
+    background: rgba(255, 152, 0, 0.1);
+    border-color: rgba(255, 152, 0, 0.3);
+}
+
+.stat-box.stat-danger {
+    background: rgba(244, 67, 54, 0.1);
+    border-color: rgba(244, 67, 54, 0.3);
+}
+
+.stat-box .stat-number {
+    display: block;
+    font-size: 32px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+}
+
+.stat-box .stat-label {
+    display: block;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.85);
+    text-transform: uppercase;
+}
+
+/* Itens Verificados */
+.itens-verificados {
+    margin-top: 24px;
+}
+
+.categoria-detalhes {
+    margin-bottom: 24px;
+}
+
+.categoria-detalhes h5 {
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 16px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid rgba(102, 126, 234, 0.3);
+}
+
+.table-detalhes {
+    width: 100%;
+    border-collapse: collapse;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.table-detalhes thead {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.table-detalhes th {
+    padding: 12px;
+    text-align: left;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.table-detalhes td {
+    padding: 12px;
+    color: #fff;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.table-detalhes tbody tr:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.table-detalhes tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: rgba(255, 255, 255, 0.5);
+    font-style: italic;
+}
+
+/* Responsive: Inspeções */
+@media (max-width: 768px) {
+    .inspecoes-tabs {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .inspecao-tab-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .filters-row {
+        flex-direction: column;
+    }
+
+    .filters-row select,
+    .filters-row input {
+        width: 100%;
+        min-width: 100%;
+    }
+
+    .item-controles {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .item-status,
+    .item-observacao {
+        width: 100%;
+        min-width: 100%;
+    }
+
+    .status-stats {
+        flex-direction: column;
+    }
+
+    .modal-large {
+        max-width: 95%;
+        padding: 16px;
+    }
+
+    .info-row {
+        flex-direction: column;
+    }
+
+    .modal-actions {
+        flex-direction: column;
+    }
+
+    .modal-actions button {
+        width: 100%;
+    }
+}
+
+/* ==================== MODAL VISUALIZAR INSPEÇÃO - CORES CLARAS ==================== */
+
+#visualizarInspecaoModal .modal-content {
+    color: #fff;
+}
+
+#visualizarInspecaoModal .info-item {
+    color: #fff;
+}
+
+#visualizarInspecaoModal .info-item strong {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 600;
+}
+
+#visualizarInspecaoModal h3,
+#visualizarInspecaoModal h4,
+#visualizarInspecaoModal h5 {
+    color: #fff;
+}
+
+#visualizarInspecaoModal .table-detalhes {
+    color: #fff;
+}
+
+#visualizarInspecaoModal .table-detalhes th {
+    color: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+#visualizarInspecaoModal .table-detalhes td {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+#visualizarInspecaoModal .categoria-detalhes h5 {
+    color: #fff;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+}
+
+/* Garantir que todos os elementos do modal tenham cores claras */
+#visualizarInspecaoModal .stat-box .stat-number {
+    color: #fff;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+#visualizarInspecaoModal .stat-box .stat-label {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+#visualizarInspecaoModal .badge {
+    opacity: 1;
+}
+
+#visualizarInspecaoModal .inspecao-info {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Remover qualquer cor azul residual */
+#visualizarInspecaoModal * {
+    color: inherit;
 }

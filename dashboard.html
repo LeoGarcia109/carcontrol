@@ -46,6 +46,10 @@
                     <i data-lucide="wrench" class="nav-icon"></i>
                     <span class="nav-text">Manutenção</span>
                 </a></li>
+                <li><a href="#inspecoes" class="nav-link" onclick="showSection('inspecoes')">
+                    <i data-lucide="clipboard-check" class="nav-icon"></i>
+                    <span class="nav-text">Inspeções</span>
+                </a></li>
                 <li><a href="#alertas" class="nav-link" onclick="showSection('alertas')">
                     <i data-lucide="alert-triangle" class="nav-icon"></i>
                     <span class="nav-text">Alertas</span>
@@ -60,7 +64,7 @@
                 </a></li>
             </ul>
             <div class="version-info">
-                <span class="version-text">v0.1.1 Beta</span>
+                <span class="version-text">v0.2.0 Beta</span>
             </div>
             <button class="logout-btn" onclick="logout()">
                 <i data-lucide="log-out" class="logout-icon"></i>
@@ -71,7 +75,7 @@
         <div class="main-content">
             <div class="header">
                 <h1>Dashboard - Controle de Veículos</h1>
-                <div>
+                <div class="user-welcome">
                     <p id="welcomeMessage">Bem-vindo</p>
                     <span id="userRoleBadge" class="user-role-badge role-admin">Admin</span>
                 </div>
@@ -143,6 +147,18 @@
                             </span>
                         </div>
                     </div>
+
+                    <!-- KPI 5: Inspeções Semanais -->
+                    <div class="stat-card kpi-inspection" style="background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);">
+                        <div class="stat-icon-text">INSPEÇÕES</div>
+                        <div class="stat-number" id="kpiInspectionCompliance">0%</div>
+                        <div class="stat-label">Conformidade Semanal</div>
+                        <div class="stat-detail" id="kpiInspectionDetail">
+                            <span style="color: #10b981;" id="kpiInspectionOk">0 Em dia</span>
+                            <span style="color: #f59e0b; margin-left: 8px;" id="kpiInspectionDueSoon">0 Vence breve</span>
+                            <span style="color: #ef4444; margin-left: 8px;" id="kpiInspectionOverdue">0 Vencidas</span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Linha 2: Status da Frota + Mapa GPS em Tempo Real -->
@@ -199,6 +215,180 @@
                         <h3 class="chart-title">CNHs - Vencimentos Próximos</h3>
                         <canvas id="cnhTimelineChart"></canvas>
                     </div>
+                </div>
+            </div>
+
+            <!-- Seção Inspeções -->
+            <div id="inspecoes" class="content-section">
+                <h2 class="section-title">🔍 Inspeções de Veículos</h2>
+
+                <!-- KPIs de Inspeções -->
+                <div class="kpi-cards">
+                    <div class="stat-card kpi-success">
+                        <div class="stat-icon-text">APROVADAS</div>
+                        <div class="stat-number" id="kpiInspecoesAprovadas">0</div>
+                        <div class="stat-label">Inspeções aprovadas este mês</div>
+                    </div>
+                    <div class="stat-card kpi-warning">
+                        <div class="stat-icon-text">COM RESTRIÇÃO</div>
+                        <div class="stat-number" id="kpiInspecoesRestricao">0</div>
+                        <div class="stat-label">Aprovadas com restrição</div>
+                    </div>
+                    <div class="stat-card kpi-danger">
+                        <div class="stat-icon-text">REPROVADAS</div>
+                        <div class="stat-number" id="kpiInspecoesReprovadas">0</div>
+                        <div class="stat-label">Inspeções reprovadas</div>
+                    </div>
+                    <div class="stat-card kpi-info">
+                        <div class="stat-icon-text">PENDENTES</div>
+                        <div class="stat-number" id="kpiInspecoesPendentes">0</div>
+                        <div class="stat-label">Inspeções aguardando realização</div>
+                    </div>
+                </div>
+
+                <!-- Sistema de Tabs -->
+                <div class="inspecoes-tabs">
+                    <button class="inspecao-tab-btn active" onclick="showInspecaoTab('pre-viagem')">
+                        <i data-lucide="clipboard-check"></i> Pré-Viagem
+                    </button>
+                    <button class="inspecao-tab-btn" onclick="showInspecaoTab('revisao')">
+                        <i data-lucide="wrench"></i> Revisão Técnica
+                    </button>
+                    <button class="inspecao-tab-btn" onclick="showInspecaoTab('historico')">
+                        <i data-lucide="history"></i> Histórico
+                    </button>
+                </div>
+
+                <!-- Conteúdo das Tabs -->
+                <div class="inspecoes-content">
+
+                    <!-- Tab: Pré-Viagem -->
+                    <div id="pre-viagem" class="inspecao-tab-panel active">
+                        <div class="section-header">
+                            <h3>Inspeção Pré-Viagem</h3>
+                            <button class="btn btn-success" onclick="novaInspecao('pre_viagem')">
+                                <i data-lucide="plus"></i> Nova Inspeção
+                            </button>
+                        </div>
+
+                        <div class="filters-row">
+                            <select id="filterPreViagemVeiculo" class="form-control" onchange="filterInspecoesPreViagem()">
+                                <option value="">Todos os veículos</option>
+                            </select>
+                            <select id="filterPreViagemStatus" class="form-control" onchange="filterInspecoesPreViagem()">
+                                <option value="">Todos os status</option>
+                                <option value="aprovado">Aprovado</option>
+                                <option value="aprovado_com_restricao">Aprovado com Restrição</option>
+                                <option value="reprovado">Reprovado</option>
+                            </select>
+                            <input type="date" id="filterPreViagemData" class="form-control" onchange="filterInspecoesPreViagem()">
+                        </div>
+
+                        <div class="table-container">
+                            <table id="preViagemTable">
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Veículo</th>
+                                        <th>Motorista</th>
+                                        <th>KM</th>
+                                        <th>Status</th>
+                                        <th>Não Conformidades</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="preViagemTableBody">
+                                    <tr>
+                                        <td colspan="7" class="empty-state">Nenhuma inspeção pré-viagem realizada</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Tab: Revisão Técnica -->
+                    <div id="revisao" class="inspecao-tab-panel">
+                        <div class="section-header">
+                            <h3>Revisão Técnica</h3>
+                            <button class="btn btn-success" onclick="novaInspecao('revisao')">
+                                <i data-lucide="plus"></i> Nova Revisão
+                            </button>
+                        </div>
+
+                        <div class="filters-row">
+                            <select id="filterRevisaoVeiculo" class="form-control" onchange="filterInspecoesRevisao()">
+                                <option value="">Todos os veículos</option>
+                            </select>
+                            <select id="filterRevisaoStatus" class="form-control" onchange="filterInspecoesRevisao()">
+                                <option value="">Todos os status</option>
+                                <option value="aprovado">Aprovado</option>
+                                <option value="aprovado_com_restricao">Aprovado com Restrição</option>
+                                <option value="reprovado">Reprovado</option>
+                            </select>
+                            <input type="date" id="filterRevisaoData" class="form-control" onchange="filterInspecoesRevisao()">
+                        </div>
+
+                        <div class="table-container">
+                            <table id="revisaoTable">
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Veículo</th>
+                                        <th>Motorista/Mecânico</th>
+                                        <th>KM</th>
+                                        <th>Status</th>
+                                        <th>Próxima Revisão</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="revisaoTableBody">
+                                    <tr>
+                                        <td colspan="7" class="empty-state">Nenhuma revisão técnica realizada</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Tab: Histórico -->
+                    <div id="historico" class="inspecao-tab-panel">
+                        <h3>Histórico de Inspeções</h3>
+
+                        <div class="filters-row">
+                            <select id="filterHistoricoVeiculo" class="form-control" onchange="filterHistoricoInspecoes()">
+                                <option value="">Todos os veículos</option>
+                            </select>
+                            <select id="filterHistoricoTipo" class="form-control" onchange="filterHistoricoInspecoes()">
+                                <option value="">Todos os tipos</option>
+                                <option value="pre_viagem">Pré-Viagem</option>
+                                <option value="revisao">Revisão Técnica</option>
+                            </select>
+                            <input type="date" id="filterHistoricoDataInicio" class="form-control" placeholder="Data Início" onchange="filterHistoricoInspecoes()">
+                            <input type="date" id="filterHistoricoDataFim" class="form-control" placeholder="Data Fim" onchange="filterHistoricoInspecoes()">
+                        </div>
+
+                        <div class="table-container">
+                            <table id="historicoInspecoesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Tipo</th>
+                                        <th>Veículo</th>
+                                        <th>Responsável</th>
+                                        <th>Status</th>
+                                        <th>Itens Verificados</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historicoInspecoesTableBody">
+                                    <tr>
+                                        <td colspan="7" class="empty-state">Nenhuma inspeção no histórico</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
@@ -1065,10 +1255,117 @@
         </div>
     </div>
 
+    <!-- Modal de Inspeção -->
+    <div id="inspecaoModal" class="modal">
+        <div class="modal-content modal-large">
+            <span class="close" onclick="closeModal('inspecaoModal')">&times;</span>
+            <h3 id="inspecaoModalTitle">Nova Inspeção</h3>
+            <form id="inspecaoForm">
+                <input type="hidden" id="inspecaoId">
+                <input type="hidden" id="inspecaoTemplateId">
+
+                <!-- Informações Básicas -->
+                <div class="inspecao-header">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tipo de Inspeção:</label>
+                            <select id="inspecaoTipo" required onchange="carregarTemplateInspecao()">
+                                <option value="">Selecione o tipo</option>
+                                <option value="pre_viagem">Pré-Viagem</option>
+                                <option value="revisao">Revisão Técnica</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Veículo:</label>
+                            <select id="inspecaoVeiculo" required onchange="carregarKmAtual()">
+                                <option value="">Selecione o veículo</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Responsável:</label>
+                            <select id="inspecaoMotorista" required>
+                                <option value="">Selecione o responsável</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Data da Inspeção:</label>
+                            <input type="datetime-local" id="inspecaoData" required>
+                        </div>
+                        <div class="form-group">
+                            <label>KM do Veículo:</label>
+                            <input type="number" id="inspecaoKm" required min="0">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Checklist de Itens -->
+                <div class="checklist-container" id="checklistContainer">
+                    <div class="loading-checklist">
+                        <p>Selecione o tipo de inspeção para carregar o checklist...</p>
+                    </div>
+                </div>
+
+                <!-- Observações Gerais -->
+                <div class="form-group">
+                    <label>Observações Gerais:</label>
+                    <textarea id="inspecaoObservacoes" rows="3" placeholder="Observações sobre a inspeção geral..."></textarea>
+                </div>
+
+                <!-- Resumo do Status -->
+                <div class="inspecao-status-summary" id="statusSummary" style="display: none;">
+                    <h4>Resumo da Inspeção</h4>
+                    <div class="status-stats">
+                        <div class="status-stat status-ok">
+                            <span class="stat-number" id="itensConformes">0</span>
+                            <span class="stat-label">Conformes</span>
+                        </div>
+                        <div class="status-stat status-warning">
+                            <span class="stat-number" id="itensAlerta">0</span>
+                            <span class="stat-label">Com Alerta</span>
+                        </div>
+                        <div class="status-stat status-error">
+                            <span class="stat-number" id="itensNaoConformes">0</span>
+                            <span class="stat-label">Não Conformes</span>
+                        </div>
+                    </div>
+                    <div class="status-result" id="statusResult">
+                        <strong>Status Final:</strong> <span id="statusFinal"></span>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('inspecaoModal')">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Salvar Inspeção</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Visualização de Inspeção -->
+    <div id="visualizarInspecaoModal" class="modal">
+        <div class="modal-content modal-large">
+            <span class="close" onclick="closeModal('visualizarInspecaoModal')">&times;</span>
+            <h3>Detalhes da Inspeção</h3>
+
+            <div id="inspecaoDetalhes">
+                <!-- Será preenchido dinamicamente -->
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('visualizarInspecaoModal')">Fechar</button>
+                <button type="button" class="btn btn-danger" onclick="excluirInspecaoAtual()">Excluir Inspeção</button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/api.js?v=2"></script>
     <script src="js/auth.js"></script>
     <script src="js/main.js"></script>
     <script src="js/gps-tracking.js?v=23"></script>
+    <script src="js/inspections.js?v=20"></script>
     <script>
         // Inicializar sistema após carregamento
         document.addEventListener('DOMContentLoaded', async function() {

@@ -5,6 +5,66 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [0.2.0-beta] - 2025-01-13
+
+### ✨ Adicionado
+
+#### Sistema de Conformidade de Inspeção Semanal
+- **Backend de Conformidade**: Novos endpoints REST para verificação de conformidade de inspeção
+  - `/inspections/compliance/{vehicleId}` - Verifica conformidade individual
+  - `/inspections/vehicle-status` - Status de conformidade da frota completa
+- **Regras de Negócio**: Inspeção obrigatória a cada 7 dias
+  - Status "ok" (0-5 dias), "due_soon" (5-7 dias), "overdue" (>7 dias), "never_inspected"
+- **Dashboard KPI**: Widget de conformidade semanal mostrando % de veículos em conformidade
+- **Sistema de Alertas**: Integração com alertas existentes para inspeções vencidas/próximas
+- **Validação de Uso**: Aviso/bloqueio ao tentar usar veículo sem inspeção válida
+- **Indicadores Visuais**: Emoji de status em todos os dropdowns de seleção de veículos
+  - 🟢 Verde = Em conformidade (0-5 dias)
+  - 🟡 Amarelo = Vencimento próximo (5-7 dias)
+  - 🔴 Vermelho = Vencido (>7 dias) ou nunca inspecionado
+
+#### Módulo de Inspeção Mobile
+- **Interface Completa**: Módulo de inspeção integrado ao mobile-driver.html
+- **Templates de Inspeção**: Checklists pré-definidos (pré-viagem, pós-viagem, diária, semanal)
+- **Auto-preenchimento**: KM atual do veículo preenche automaticamente
+- **Validação**: Função formatDateTimeForSQL para compatibilidade de datas
+
+### 🐛 Correções
+
+#### Sistema de Inspeção
+- **Status "alerta"**: Corrigido erro de salvamento quando item tinha status "alerta"
+  - Adicionado "alerta" ao ENUM da coluna status na tabela inspecoes_itens
+- **Função formatDateTimeForSQL**: Adicionada função faltante no mobile-driver.js
+
+### 🔧 Melhorias Técnicas
+
+- **API de Conformidade**: Cache de 5 minutos para otimizar performance
+- **Validação Assíncrona**: Verificação de conformidade em tempo real
+- **Integração Completa**: Sistema integrado com módulos existentes (alertas, uso, dashboard)
+
+### 📝 Arquivos Criados
+
+- `api/inspections/compliance.php` - Endpoint de conformidade individual
+- `api/inspections/vehicle-status.php` - Endpoint de status da frota
+- `api/controllers/InspectionController.php` - Controlador principal de inspeções
+- `database/fix_alerta_status_migration.sql` - Correção do ENUM
+- `database/inspecoes_migration.sql` - Estrutura de tabelas de inspeção
+- `database/inspection_templates_seed.sql` - Templates pré-definidos
+- `js/inspections.js` - Lógica de inspeções do frontend
+- `test-inspection-compliance.html` - Página de testes do sistema
+- `docs/INSPECTION_COMPLIANCE_SUMMARY.md` - Documentação completa
+
+### 📝 Arquivos Modificados
+
+- `api/index.php` - Rotas de conformidade adicionadas
+- `js/api.js` - Funções apiCheckInspectionCompliance e apiGetVehicleInspectionStatus
+- `js/main.js` - Integração de alertas e validação de conformidade
+- `js/mobile-driver.js` - Módulo completo de inspeção e indicadores visuais
+- `dashboard.html` - Widget KPI de conformidade semanal
+- `mobile-driver.html` - Modal de inspeção e FAB menu
+- `css/mobile-driver.css` - Estilos do módulo de inspeção
+- `css/styles.css` - Estilos do widget de conformidade
+
 ## [0.1.1-beta] - 2025-11-09
 
 ### 🐛 Correções

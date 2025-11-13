@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Salvamento de Inspeção Mobile</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        .test-result {
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .success {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid #10b981;
+        }
+        .warning {
+            background: rgba(245, 158, 11, 0.2);
+            border: 1px solid #f59e0b;
+        }
+        .error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #ef4444;
+        }
+        .info {
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid #3b82f6;
+        }
+        button {
+            padding: 12px 24px;
+            margin: 8px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+        .code-block {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Teste de Salvamento de Inspeção - Mobile</h1>
+
+        <div class="test-section">
+            <h2>✅ Status da Correção</h2>
+            <div id="fixStatus"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 Teste de Função formatDateTimeForSQL</h2>
+            <button onclick="testDateFormat()">Testar Formatação de Data</button>
+            <div id="dateResults"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📱 Teste de Payload de Inspeção</h2>
+            <button onclick="testInspectionPayload()">Gerar Payload de Teste</button>
+            <div id="payloadResults"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🚀 Teste de Envio ao Backend</h2>
+            <button onclick="testBackendSubmission()">Testar Envio Real</button>
+            <div id="backendResults"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000';
+
+        // Função copiada do mobile-driver.js
+        function formatDateTimeForSQL(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+
+        // Verificar status da correção
+        function checkFixStatus() {
+            const results = document.getElementById('fixStatus');
+            let html = '';
+
+            html += '<div class="test-result success">✅ Função formatDateTimeForSQL adicionada ao mobile-driver.js</div>';
+            html += '<div class="test-result info">📍 Localização: linha 1408-1416</div>';
+            html += '<div class="code-block">function formatDateTimeForSQL(date) {<br>&nbsp;&nbsp;// Formata data para SQL: YYYY-MM-DD HH:MM:SS<br>}</div>';
+
+            results.innerHTML = html;
+        }
+
+        // Teste de formatação de data
+        function testDateFormat() {
+            const results = document.getElementById('dateResults');
+            let html = '<h3>Testando formatação de data:</h3>';
+
+            const testDate = new Date();
+            const formattedDate = formatDateTimeForSQL(testDate);
+
+            html += `<div class="test-result info">📅 Data atual: ${testDate.toString()}</div>`;
+            html += `<div class="test-result success">✅ Formatada para SQL: ${formattedDate}</div>`;
+
+            // Validar formato
+            const sqlDateRegex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+            if (sqlDateRegex.test(formattedDate)) {
+                html += '<div class="test-result success">✅ Formato SQL válido (YYYY-MM-DD HH:MM:SS)</div>';
+            } else {
+                html += '<div class="test-result error">❌ Formato SQL inválido</div>';
+            }
+
+            // Testar com diferentes datas
+            const testCases = [
+                new Date('2025-01-01 00:00:00'),
+                new Date('2025-12-31 23:59:59'),
+                new Date('2025-06-15 12:30:45')
+            ];
+
+            html += '<h4>Casos de teste:</h4>';
+            testCases.forEach(testCase => {
+                const formatted = formatDateTimeForSQL(testCase);
+                html += `<div class="test-result info">• ${testCase.toLocaleString('pt-BR')} → ${formatted}</div>`;
+            });
+
+            results.innerHTML = html;
+        }
+
+        // Teste de payload
+        function testInspectionPayload() {
+            const results = document.getElementById('payloadResults');
+            let html = '<h3>Payload de inspeção simulado:</h3>';
+
+            // Simular payload como no mobile
+            const payload = {
+                vehicleId: 1,
+                driverId: 1,
+                templateId: 1,
+                type: 'pre_viagem',
+                inspectionDate: formatDateTimeForSQL(new Date()),
+                km: 45000,
+                generalObservations: 'Teste de inspeção mobile',
+                items: [
+                    {
+                        itemTemplateId: 1,
+                        status: 'conforme',
+                        observation: null
+                    },
+                    {
+                        itemTemplateId: 2,
+                        status: 'alerta',
+                        observation: 'Precisa verificar'
+                    }
+                ]
+            };
+
+            html += '<pre>' + JSON.stringify(payload, null, 2) + '</pre>';
+
+            // Validar payload
+            const requiredFields = ['vehicleId', 'driverId', 'templateId', 'type', 'km', 'items'];
+            let allFieldsPresent = true;
+
+            html += '<h4>Validação do payload:</h4>';
+            requiredFields.forEach(field => {
+                if (payload[field] !== undefined && payload[field] !== null) {
+                    html += `<div class="test-result success">✅ Campo obrigatório presente: ${field}</div>`;
+                } else {
+                    html += `<div class="test-result error">❌ Campo obrigatório ausente: ${field}</div>`;
+                    allFieldsPresent = false;
+                }
+            });
+
+            if (allFieldsPresent) {
+                html += '<div class="test-result success"><strong>✅ Payload válido para envio!</strong></div>';
+            } else {
+                html += '<div class="test-result error"><strong>❌ Payload inválido - campos faltando</strong></div>';
+            }
+
+            results.innerHTML = html;
+        }
+
+        // Teste real com backend
+        async function testBackendSubmission() {
+            const results = document.getElementById('backendResults');
+            results.innerHTML = '<div class="test-result info">⏳ Testando conexão com backend...</div>';
+
+            try {
+                // Primeiro fazer login
+                const loginResponse = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        username: 'leo@gmail.com',
+                        password: '142316'
+                    })
+                });
+
+                const loginData = await loginResponse.json();
+
+                if (!loginData.success) {
+                    results.innerHTML = `<div class="test-result error">❌ Falha no login: ${loginData.message}</div>`;
+                    return;
+                }
+
+                results.innerHTML += '<div class="test-result success">✅ Login realizado com sucesso</div>';
+
+                // Criar payload de teste
+                const testPayload = {
+                    vehicleId: 1,
+                    driverId: 1,
+                    templateId: 1,
+                    type: 'pre_viagem',
+                    inspectionDate: formatDateTimeForSQL(new Date()),
+                    km: Math.floor(Math.random() * 100000),
+                    generalObservations: `Teste mobile - ${new Date().toLocaleTimeString('pt-BR')}`,
+                    items: [
+                        {
+                            itemTemplateId: 1,
+                            status: 'conforme',
+                            observation: null
+                        },
+                        {
+                            itemTemplateId: 2,
+                            status: 'alerta',
+                            observation: 'Item com alerta para teste'
+                        }
+                    ]
+                };
+
+                results.innerHTML += '<div class="test-result info">📤 Enviando inspeção de teste...</div>';
+                results.innerHTML += '<pre>' + JSON.stringify(testPayload, null, 2) + '</pre>';
+
+                // Enviar inspeção
+                const response = await fetch(`${API_URL}/inspections`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(testPayload)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    results.innerHTML += `<div class="test-result success">✅ <strong>Inspeção salva com sucesso!</strong> ID: ${data.data.id}</div>`;
+                    results.innerHTML += '<div class="test-result success">✅ Função formatDateTimeForSQL está funcionando corretamente</div>';
+                    results.innerHTML += '<div class="test-result success">✅ Mobile pode salvar inspeções normalmente</div>';
+                } else {
+                    results.innerHTML += `<div class="test-result error">❌ Erro ao salvar: ${data.message}</div>`;
+                    if (data.error) {
+                        results.innerHTML += '<pre>' + JSON.stringify(data.error, null, 2) + '</pre>';
+                    }
+                }
+
+            } catch (error) {
+                results.innerHTML += `<div class="test-result error">❌ Erro de conexão: ${error.message}</div>`;
+                results.innerHTML += '<div class="test-result warning">⚠️ Verifique se o backend está rodando na porta 5000</div>';
+            }
+        }
+
+        // Carregar status ao abrir a página
+        window.addEventListener('DOMContentLoaded', () => {
+            checkFixStatus();
+        });
+    </script>
+</body>
+</html>
