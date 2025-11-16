@@ -9,7 +9,12 @@
       "mcp__playwright__playwright_console_logs",
       "mcp__playwright__playwright_evaluate",
       "mcp__playwright__playwright_close",
-      "mcp__github__get_file_contents"
+      "mcp__github__get_file_contents",
+      "mcp__mcp-ssh-casa__ssh_execute",
+      "mcp__mcp-ssh-casa__docker_ps",
+      "mcp__mcp-ssh-casa__network_ports",
+      "mcp__mcp-ssh-casa__ssh_file_write",
+      "mcp__mcp-ssh-casa__docker_logs"
     ],
     "deny": [],
     "ask": []
