@@ -344,8 +344,11 @@ class OfflineDB {
      */
     async getUnsyncedGPSCount() {
         await this.init();
-        const points = await this._getByIndex(STORES.GPS_QUEUE, 'synced', false);
-        return points.length;
+        // FIX: IndexedDB getAll() com booleano false pode falhar
+        // Usar _getAll() e filtrar manualmente ao invés de usar index
+        const allPoints = await this._getAll(STORES.GPS_QUEUE);
+        const unsyncedPoints = allPoints.filter(point => !point.synced);
+        return unsyncedPoints.length;
     }
 
     /**

@@ -40,11 +40,27 @@ class GPSController {
 
             $vehicleId = (int)$data['vehicleId'];
             $driverId = (int)$data['driverId'];
-            $usageId = isset($data['usageId']) ? (int)$data['usageId'] : null;
+
+            // Tratar IDs temporários criados offline (temp_1, temp_2, etc.)
+            // Quando rota é criada offline, recebe ID temporário que não existe no banco
+            // Neste caso, GPS é enviado sem vincular a uso_veiculo_id (NULL)
+            $usageId = null;
+            if (isset($data['usageId'])) {
+                $rawUsageId = $data['usageId'];
+                // Se é string começando com "temp_", ignorar (setar NULL)
+                if (is_string($rawUsageId) && strpos($rawUsageId, 'temp_') === 0) {
+                    // ID temporário offline - não vincular a uso ainda
+                    $usageId = null;
+                } else {
+                    // ID válido do banco
+                    $usageId = (int)$rawUsageId;
+                }
+            }
 
             // Validar se motorista pode enviar GPS deste veículo
-            if ($userRole === 'motorista') {
+            if ($userRole === 'motorista' && $usageId !== null) {
                 // Motorista só pode enviar GPS do próprio veículo em uso ativo
+                // Se usageId for NULL (offline), pular validação (será validado quando sincronizar)
                 $checkQuery = "SELECT id FROM uso_veiculos
                               WHERE id = :usage_id
                               AND veiculo_id = :vehicle_id

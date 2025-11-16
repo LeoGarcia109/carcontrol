@@ -21,8 +21,7 @@ function sendError($message, $statusCode = 400) {
     ], $statusCode);
 }
 
-// Verificar autenticação
-session_start();
+// Verificar autenticação (sessão já iniciada pelo index.php)
 if (!isset($_SESSION['user_id'])) {
     sendError('Não autorizado', 401);
 }

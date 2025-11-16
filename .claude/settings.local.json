@@ -14,7 +14,13 @@
       "mcp__mcp-ssh-casa__docker_ps",
       "mcp__mcp-ssh-casa__network_ports",
       "mcp__mcp-ssh-casa__ssh_file_write",
-      "mcp__mcp-ssh-casa__docker_logs"
+      "mcp__mcp-ssh-casa__docker_logs",
+      "mcp__mcp-ssh-casa__ssh_file_read",
+      "mcp__mcp-ssh-casa__docker_exec",
+      "mcp__mcp-ssh-casa-tunnel__ssh_execute",
+      "mcp__mcp-ssh-casa-tunnel__docker_logs",
+      "mcp__mcp-ssh-casa-tunnel__ssh_file_read",
+      "mcp__mcp-ssh-casa-tunnel__docker_exec"
     ],
     "deny": [],
     "ask": []
