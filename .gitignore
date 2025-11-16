@@ -63,6 +63,14 @@ logs/
 .env.local
 .env.*.local
 
+# Docker volumes and data
+mysql_data/
+docker/mysql_data/
+*.tar.gz
+
+# Docker logs
+docker/*.log
+
 # Temporary files
 *.tmp
 *.temp

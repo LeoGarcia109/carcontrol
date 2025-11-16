@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  carcontrol-mysql:
+    image: mysql:9.5
+    container_name: carcontrol-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/carcontrol_db.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/migration.sql:/docker-entrypoint-initdb.d/02-migration.sql:ro
+      - ./database/gps_tracking_migration.sql:/docker-entrypoint-initdb.d/03-gps.sql:ro
+    networks:
+      - carcontrol-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PHP Backend API
+  carcontrol-backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.php
+    container_name: carcontrol-backend
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html:ro
+    environment:
+      DB_HOST: carcontrol-mysql
+      DB_NAME: ${MYSQL_DATABASE}
+      DB_USER: ${MYSQL_USER}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+    depends_on:
+      carcontrol-mysql:
+        condition: service_healthy
+    networks:
+      - carcontrol-network
+    restart: unless-stopped
+    command: php -S 0.0.0.0:5000 -t /var/www/html/api router.php
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(0);"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Nginx Frontend + Proxy
+  carcontrol-frontend:
+    image: nginx:alpine
+    container_name: carcontrol-frontend
+    ports:
+      - "5200:80"
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - carcontrol-backend
+    networks:
+      - carcontrol-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  carcontrol-network:
+    driver: bridge

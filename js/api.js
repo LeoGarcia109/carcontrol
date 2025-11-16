@@ -2,9 +2,17 @@
 // Módulo de Integração com API Backend - CarControl
 // ================================================================
 console.log('📦 API module loaded');
-// URL base da API
-const API_URL = 'http://localhost:5000';
-console.log('🌐 API URL:', API_URL);
+
+// URL base da API - Detecta ambiente automaticamente
+const API_URL = (function() {
+    // Em produção (via Nginx proxy), usar caminho relativo /api
+    // Em desenvolvimento local, usar http://localhost:5000
+    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    const url = isProduction ? '/api' : 'http://localhost:5000';
+    console.log('🌐 Ambiente:', isProduction ? 'PRODUÇÃO' : 'DESENVOLVIMENTO');
+    console.log('🌐 API URL:', url);
+    return url;
+})();
 
 /**
  * Função genérica para fazer requisições à API

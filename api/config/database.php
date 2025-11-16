@@ -6,12 +6,29 @@
 
 class Database {
     // Configurações do banco de dados
-    private $host = "localhost";
-    private $port = "3306";
-    private $db_name = "carcontrol_db";
-    private $username = "root";
-    private $password = "";  // Senha vazia (confirmado funcionando)
+    // Suporta variáveis de ambiente Docker e fallback para desenvolvimento local
+    private $host;
+    private $port;
+    private $db_name;
+    private $username;
+    private $password;
     private $charset = "utf8mb4";
+
+    public function __construct() {
+        // Detectar ambiente e usar variáveis apropriadas
+        $this->host = getenv('DB_HOST') ?: 'localhost';
+        $this->port = getenv('DB_PORT') ?: '3306';
+        $this->db_name = getenv('DB_NAME') ?: 'carcontrol_db';
+        $this->username = getenv('DB_USER') ?: 'root';
+        $this->password = getenv('DB_PASSWORD') ?: '';
+
+        // Log para debug (apenas em desenvolvimento)
+        if (getenv('DB_HOST')) {
+            error_log("🐳 Usando configuração Docker: DB_HOST=" . $this->host);
+        } else {
+            error_log("💻 Usando configuração local de desenvolvimento");
+        }
+    }
 
     public $conn;
 
