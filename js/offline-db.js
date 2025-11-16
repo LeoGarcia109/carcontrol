@@ -166,7 +166,10 @@ class OfflineDB {
      */
     async getUnsyncedRoutes() {
         await this.init();
-        return this._getByIndex(STORES.PENDING_ROUTES, 'synced', false);
+        // FIX: IndexedDB getAll() com booleano false pode falhar
+        // Usar _getAll() e filtrar manualmente ao invés de usar index
+        const allRoutes = await this._getAll(STORES.PENDING_ROUTES);
+        return allRoutes.filter(route => !route.synced);
     }
 
     /**
@@ -216,7 +219,10 @@ class OfflineDB {
      */
     async getUnsyncedFinalizations() {
         await this.init();
-        return this._getByIndex(STORES.PENDING_FINALIZATIONS, 'synced', false);
+        // FIX: IndexedDB getAll() com booleano false pode falhar
+        // Usar _getAll() e filtrar manualmente ao invés de usar index
+        const allFinalizations = await this._getAll(STORES.PENDING_FINALIZATIONS);
+        return allFinalizations.filter(finalization => !finalization.synced);
     }
 
     /**
@@ -265,7 +271,10 @@ class OfflineDB {
      */
     async getUnsyncedExpenses() {
         await this.init();
-        return this._getByIndex(STORES.PENDING_EXPENSES, 'synced', false);
+        // FIX: IndexedDB getAll() com booleano false pode falhar
+        // Usar _getAll() e filtrar manualmente ao invés de usar index
+        const allExpenses = await this._getAll(STORES.PENDING_EXPENSES);
+        return allExpenses.filter(expense => !expense.synced);
     }
 
     /**

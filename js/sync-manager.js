@@ -25,10 +25,15 @@ class SyncManager {
         }
 
         // Verificar suporte a Background Sync
-        if ('sync' in registration) {
-            console.log('[SyncManager] Background Sync supported');
-        } else {
-            console.warn('[SyncManager] Background Sync not supported, using fallback');
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            if ('sync' in registration) {
+                console.log('[SyncManager] Background Sync supported');
+            } else {
+                console.warn('[SyncManager] Background Sync not supported, using fallback');
+            }
+        } catch (error) {
+            console.warn('[SyncManager] Could not check Background Sync support:', error);
         }
 
         // Listen para mudanças de conectividade
