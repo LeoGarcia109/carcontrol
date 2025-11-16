@@ -6,37 +6,28 @@
 
 -- 1. Adicionar coluna motorista_id na tabela usuarios
 -- Permite vincular usuários do tipo 'motorista' ao cadastro de motoristas
-ALTER TABLE usuarios
-ADD COLUMN IF NOT EXISTS motorista_id INT NULL,
-ADD CONSTRAINT fk_usuario_motorista
-    FOREIGN KEY (motorista_id)
-    REFERENCES motoristas(id)
-    ON DELETE SET NULL;
+ALTER TABLE usuarios ADD COLUMN motorista_id INT NULL;
+ALTER TABLE usuarios ADD CONSTRAINT fk_usuario_motorista FOREIGN KEY (motorista_id) REFERENCES motoristas(id) ON DELETE SET NULL;
 
 -- 2. Adicionar role 'motorista' ao ENUM de usuarios
 -- Permite criar usuários com perfil de motorista
-ALTER TABLE usuarios
-MODIFY COLUMN role ENUM('admin', 'user', 'motorista') DEFAULT 'user';
+ALTER TABLE usuarios MODIFY COLUMN role ENUM('admin', 'user', 'motorista') DEFAULT 'user';
 
 -- 3. Adicionar coluna photo na tabela veiculos
 -- Armazena foto do veículo em formato BLOB
-ALTER TABLE veiculos
-ADD COLUMN IF NOT EXISTS photo MEDIUMBLOB NULL AFTER observacoes;
+ALTER TABLE veiculos ADD COLUMN photo MEDIUMBLOB NULL AFTER observacoes;
 
 -- 4. Adicionar coluna photo_type na tabela veiculos
 -- Armazena o tipo MIME da foto (image/jpeg, image/png, etc)
-ALTER TABLE veiculos
-ADD COLUMN IF NOT EXISTS photo_type VARCHAR(50) NULL AFTER photo;
+ALTER TABLE veiculos ADD COLUMN photo_type VARCHAR(50) NULL AFTER photo;
 
 -- 5. Adicionar coluna photo na tabela motoristas
 -- Armazena foto do motorista em formato BLOB
-ALTER TABLE motoristas
-ADD COLUMN IF NOT EXISTS photo MEDIUMBLOB NULL AFTER observacoes;
+ALTER TABLE motoristas ADD COLUMN photo MEDIUMBLOB NULL AFTER observacoes;
 
 -- 6. Adicionar coluna photo_type na tabela motoristas
 -- Armazena o tipo MIME da foto
-ALTER TABLE motoristas
-ADD COLUMN IF NOT EXISTS photo_type VARCHAR(50) NULL AFTER photo;
+ALTER TABLE motoristas ADD COLUMN photo_type VARCHAR(50) NULL AFTER photo;
 
 -- 7. Atualizar emails dos usuários padrão
 -- Configura emails para permitir login via email
