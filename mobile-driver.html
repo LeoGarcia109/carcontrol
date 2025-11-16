@@ -591,7 +591,7 @@
     <!-- Core Scripts -->
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
-    <script src="js/mobile-driver.js?v=19"></script>
+    <script src="js/mobile-driver.js?v=20"></script>
 
     <!-- Service Worker Registration -->
     <script>
@@ -599,28 +599,75 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
                 try {
-                    const registration = await navigator.serviceWorker.register('/sw.js');
-                    console.log('[SW] Service Worker registered:', registration.scope);
+                    console.log('[SW] 🔄 Iniciando processo de atualização forçada do Service Worker...');
+
+                    // PASSO 1: Desregistrar TODOS os Service Workers antigos
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    console.log(`[SW] 🗑️ Encontrados ${registrations.length} Service Workers para desregistrar`);
+
+                    for (let registration of registrations) {
+                        const unregistered = await registration.unregister();
+                        console.log('[SW] ✅ Service Worker desregistrado:', unregistered);
+                    }
+
+                    // PASSO 2: Limpar TODOS os caches
+                    const cacheNames = await caches.keys();
+                    console.log(`[SW] 🗑️ Encontrados ${cacheNames.length} caches para deletar:`, cacheNames);
+
+                    for (let cacheName of cacheNames) {
+                        const deleted = await caches.delete(cacheName);
+                        console.log(`[SW] ✅ Cache deletado: ${cacheName} (${deleted})`);
+                    }
+
+                    console.log('[SW] ✅ Limpeza completa! Registrando novo Service Worker...');
+
+                    // PASSO 3: Registrar novo Service Worker
+                    const registration = await navigator.serviceWorker.register('/sw.js', {
+                        updateViaCache: 'none' // Não usar cache para o próprio sw.js
+                    });
+                    console.log('[SW] ✅ Service Worker v1.0.2 registered:', registration.scope);
+
+                    // PASSO 4: Forçar atualização imediata
+                    await registration.update();
+                    console.log('[SW] ✅ Update forçado executado');
 
                     // Listen para atualizações do SW
                     registration.addEventListener('updatefound', () => {
                         const newWorker = registration.installing;
-                        console.log('[SW] New service worker found');
+                        console.log('[SW] 🆕 New service worker found');
 
                         newWorker.addEventListener('statechange', () => {
-                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                // Nova versão disponível
-                                console.log('[SW] New version available');
-                                // Opcionalmente mostrar notificação ao usuário
+                            console.log('[SW] 📊 SW State:', newWorker.state);
+
+                            if (newWorker.state === 'installed') {
+                                if (navigator.serviceWorker.controller) {
+                                    // Nova versão disponível - forçar reload
+                                    console.log('[SW] 🔄 Nova versão instalada! Recarregando página...');
+                                    window.location.reload();
+                                } else {
+                                    // Primeira instalação
+                                    console.log('[SW] ✅ Service Worker instalado pela primeira vez');
+                                }
+                            }
+
+                            if (newWorker.state === 'activated') {
+                                console.log('[SW] ✅ Service Worker ativado!');
                             }
                         });
                     });
+
+                    // Se já existe um SW ativo, forçar skip waiting
+                    if (navigator.serviceWorker.controller) {
+                        console.log('[SW] ⏭️ Enviando skipWaiting para SW ativo');
+                        navigator.serviceWorker.controller.postMessage({ action: 'skipWaiting' });
+                    }
+
                 } catch (error) {
-                    console.error('[SW] Service Worker registration failed:', error);
+                    console.error('[SW] ❌ Service Worker registration failed:', error);
                 }
             });
         } else {
-            console.warn('[SW] Service Workers not supported');
+            console.warn('[SW] ⚠️ Service Workers not supported');
         }
     </script>
 </body>
