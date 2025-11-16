@@ -43,7 +43,7 @@ services:
     networks:
       - carcontrol-network
     restart: unless-stopped
-    command: php -S 0.0.0.0:5000 -t /var/www/html/api router.php
+    command: php -S 0.0.0.0:5000 -t /var/www/html/api /var/www/html/api/router.php
     healthcheck:
       test: ["CMD", "php", "-r", "exit(0);"]
       interval: 10s
