@@ -583,6 +583,16 @@ try {
             exit();
         }
 
+        // GET /inspections/vehicle-status
+        if (isset($uriParts[1]) && $uriParts[1] === 'vehicle-status') {
+            if ($method === 'GET') {
+                require_once 'inspections/vehicle-status.php';
+            } else {
+                sendError('Método não permitido', 405);
+            }
+            exit();
+        }
+
         // GET /inspections/vehicle/{id}
         if (isset($uriParts[1]) && $uriParts[1] === 'vehicle' && isset($uriParts[2])) {
             if ($method === 'GET') {
