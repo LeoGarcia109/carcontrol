@@ -1685,7 +1685,7 @@ function initSpeedDialFAB() {
 // MODAL DE DESPESAS
 // ===========================
 
-function openExpenseModal() {
+async function openExpenseModal() {
     const modal = document.getElementById('expenseModal');
     const form = document.getElementById('expenseForm');
 
