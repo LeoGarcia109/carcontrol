@@ -1,13 +1,15 @@
 // Service Worker para CarControl - Mobile Driver
-// Versão: 1.0.2
+// Versão: 1.0.3
 // Suporte offline com cache de assets e Background Sync
+// FIX: Arquivos JS com ?v= agora usam Network-First para sempre buscar versão nova
 
-const CACHE_VERSION = 'carcontrol-v1.0.2';
+const CACHE_VERSION = 'carcontrol-v1.0.3';
 const CACHE_STATIC = `${CACHE_VERSION}-static`;
 const CACHE_DYNAMIC = `${CACHE_VERSION}-dynamic`;
 const CACHE_API = `${CACHE_VERSION}-api`;
 
 // Assets estáticos para cache (offline-first)
+// NOTA: Arquivos JS com versionamento (?v=X) não devem estar aqui
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -17,7 +19,7 @@ const STATIC_ASSETS = [
     '/css/mobile-driver.css',
     '/js/api.js',
     '/js/auth.js',
-    '/js/mobile-driver.js',
+    // '/js/mobile-driver.js', // REMOVIDO: usa ?v= dinâmico, deve usar Network-First
     '/js/gps-tracking.js',
     '/js/main.js',
     'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
@@ -93,6 +95,12 @@ self.addEventListener('fetch', (event) => {
 
     // Ignorar requisições que não sejam GET
     if (request.method !== 'GET') {
+        return;
+    }
+
+    // Estratégia especial: Arquivos JS com versionamento (?v=) devem usar Network-First
+    if (url.pathname.endsWith('.js') && url.search.includes('?v=')) {
+        event.respondWith(networkFirstWithCache(request, CACHE_DYNAMIC));
         return;
     }
 
