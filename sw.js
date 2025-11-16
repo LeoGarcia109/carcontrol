@@ -1,8 +1,8 @@
 // Service Worker para CarControl - Mobile Driver
-// Versão: 1.0.0
+// Versão: 1.0.1
 // Suporte offline com cache de assets e Background Sync
 
-const CACHE_VERSION = 'carcontrol-v1.0.0';
+const CACHE_VERSION = 'carcontrol-v1.0.1';
 const CACHE_STATIC = `${CACHE_VERSION}-static`;
 const CACHE_DYNAMIC = `${CACHE_VERSION}-dynamic`;
 const CACHE_API = `${CACHE_VERSION}-api`;
