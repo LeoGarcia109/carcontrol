@@ -22,7 +22,10 @@ const API_URL = (function() {
  */
 async function apiRequest(endpoint, options = {}) {
     try {
-        const response = await fetch(`${API_URL}${endpoint}`, {
+        const fullUrl = `${API_URL}${endpoint}`;
+        console.log(`🔵 API Request: ${options.method || 'GET'} ${fullUrl}`);
+
+        const response = await fetch(fullUrl, {
             ...options,
             credentials: 'include', // Importante para enviar/receber cookies de sessão
             headers: {
@@ -31,6 +34,8 @@ async function apiRequest(endpoint, options = {}) {
             }
         });
 
+        console.log(`🟢 API Response: ${response.status} ${response.statusText} - ${endpoint}`);
+
         // Verificar se a resposta foi bem-sucedida
         if (!response.ok) {
             // Tentar extrair mensagem de erro do backend
@@ -38,6 +43,7 @@ async function apiRequest(endpoint, options = {}) {
             try {
                 const errorData = await response.json();
                 errorMessage = errorData.error || errorData.message || errorMessage;
+                console.error(`🔴 API Error Data:`, errorData);
             } catch (e) {
                 // Se não conseguir parsear JSON, usar mensagem padrão
                 errorMessage = response.statusText || errorMessage;
@@ -48,7 +54,7 @@ async function apiRequest(endpoint, options = {}) {
                 // Evitar redirecionar em tentativas de login
                 const isLoginAttempt = (endpoint === '/auth/login');
                 if (!isLoginAttempt) {
-                    console.log('Sessão expirada, redirecionando para login...');
+                    console.log('🔴 Sessão expirada, redirecionando para login...');
                     window.location.href = 'index.html';
                     throw new Error('Sessão expirada');
                 }
@@ -58,9 +64,11 @@ async function apiRequest(endpoint, options = {}) {
         }
 
         // Retornar resposta em JSON
-        return await response.json();
+        const jsonData = await response.json();
+        console.log(`✅ API Success:`, endpoint, jsonData.success ? '✓' : '✗');
+        return jsonData;
     } catch (error) {
-        console.error(`Erro na requisição ${endpoint}:`, error);
+        console.error(`🔴 Erro na requisição ${endpoint}:`, error);
         throw error;
     }
 }

@@ -371,31 +371,51 @@ document.addEventListener('DOMContentLoaded', async function() {
     await cacheCurrentData();
 
     // Resolver motorista atual preferindo a API (usa motorista_id da sessão)
+    console.log('🔍 [MOBILE-DRIVER] Iniciando resolução do motorista...');
+    console.log('🔍 [MOBILE-DRIVER] User:', user);
+
     try {
         if (user.motorista_id) {
+            console.log('🔍 [MOBILE-DRIVER] Tentando carregar motorista por ID:', user.motorista_id);
             const apiDriver = await apiGetDriver(user.motorista_id);
+            console.log('🔍 [MOBILE-DRIVER] apiGetDriver retornou:', apiDriver);
             if (apiDriver) {
                 currentDriver = apiDriver;
+                console.log('✅ [MOBILE-DRIVER] Motorista carregado por ID:', currentDriver.nome);
             }
+        } else {
+            console.warn('⚠️ [MOBILE-DRIVER] User não tem motorista_id!');
         }
     } catch (e) {
-        console.warn('Falha ao carregar motorista pela API, tentando localStorage...', e);
+        console.error('🔴 [MOBILE-DRIVER] Erro ao carregar motorista pela API:', e);
     }
 
     // Fallback: tentar localizar motorista pela API via email (caso não tenha motorista_id)
     if (!currentDriver && user.email) {
+        console.log('🔍 [MOBILE-DRIVER] Tentando fallback: buscar motorista por email:', user.email);
         try {
             const allDrivers = await apiGetDrivers();
+            console.log('🔍 [MOBILE-DRIVER] apiGetDrivers retornou:', allDrivers?.data?.length || 0, 'motoristas');
             const list = allDrivers.data || [];
             currentDriver = list.find(d => d.email === user.email) || null;
-        } catch (_) {}
+            if (currentDriver) {
+                console.log('✅ [MOBILE-DRIVER] Motorista encontrado por email:', currentDriver.nome);
+            } else {
+                console.error('🔴 [MOBILE-DRIVER] Nenhum motorista encontrado com email:', user.email);
+            }
+        } catch (e) {
+            console.error('🔴 [MOBILE-DRIVER] Erro no fallback de busca por email:', e);
+        }
     }
 
     if (!currentDriver) {
+        console.error('🔴 [MOBILE-DRIVER] CRÍTICO: Motorista não encontrado! Fazendo logout...');
         alert('Motorista não encontrado no sistema. Entre em contato com o administrador.');
         logout();
         return;
     }
+
+    console.log('✅ [MOBILE-DRIVER] Motorista resolvido com sucesso:', currentDriver);
 
     // Carregar registros de uso do motorista e configurar interface
     await refreshUsageForDriver();
@@ -521,17 +541,25 @@ function setupEventListeners() {
 
 // Carregar dados da API
 async function loadDataFromAPI() {
+    console.log('📦 [MOBILE-DRIVER] Iniciando loadDataFromAPI...');
     try {
+        console.log('📦 [MOBILE-DRIVER] Chamando Promise.all para vehicles, destinations, drivers...');
         const [vehResp, destResp, drvResp] = await Promise.all([
             apiGetVehicles(),
             apiGetDestinations(),
             apiGetDrivers()
         ]);
+        console.log('📦 [MOBILE-DRIVER] Respostas recebidas:', {
+            vehicles: vehResp?.data?.length || 0,
+            destinations: destResp?.data?.length || 0,
+            drivers: drvResp?.data?.length || 0
+        });
         vehicles = vehResp.data || [];
         destinations = destResp.data || [];
         drivers = drvResp.data || [];
+        console.log('✅ [MOBILE-DRIVER] Dados carregados com sucesso');
     } catch (e) {
-        console.error('Erro ao carregar dados base:', e);
+        console.error('🔴 [MOBILE-DRIVER] Erro ao carregar dados base:', e);
     }
 }
 
