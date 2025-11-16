@@ -573,6 +573,16 @@ try {
             exit();
         }
 
+        // GET /inspections/compliance/{vehicleId}
+        if (isset($uriParts[1]) && $uriParts[1] === 'compliance' && isset($uriParts[2])) {
+            if ($method === 'GET') {
+                require_once 'inspections/compliance.php';
+            } else {
+                sendError('Método não permitido', 405);
+            }
+            exit();
+        }
+
         // GET /inspections/vehicle/{id}
         if (isset($uriParts[1]) && $uriParts[1] === 'vehicle' && isset($uriParts[2])) {
             if ($method === 'GET') {

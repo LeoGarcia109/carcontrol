@@ -38,7 +38,7 @@ class UsageController {
                         uv.id, uv.veiculo_id as vehicleId, uv.motorista_id as driverId,
                         uv.data_hora_saida as departureTime, uv.km_saida as kmDeparture,
                         uv.data_hora_retorno as returnTime, uv.km_retorno as kmReturn,
-                        uv.destino as destination, uv.destino_id as destinationId,
+                        uv.destino as destination,
                         uv.rota as route, uv.finalidade as purpose,
                         uv.observacoes as notes, uv.status,
                         uv.intercorrencia_photo, uv.intercorrencia_photo_type,

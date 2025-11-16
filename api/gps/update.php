@@ -4,6 +4,10 @@
  * Atualiza localização GPS do veículo
  */
 
+// Desabilitar exibição de erros HTML (JSON-only API)
+ini_set('display_errors', 0);
+error_reporting(0);
+
 // Sessão já iniciada pelo router
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
