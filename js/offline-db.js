@@ -330,13 +330,16 @@ class OfflineDB {
      */
     async getUnsyncedGPSPoints(limit = 50) {
         await this.init();
-        const allPoints = await this._getByIndex(STORES.GPS_QUEUE, 'synced', false);
+        // FIX: IndexedDB getAll() com booleano false pode falhar
+        // Usar _getAll() e filtrar manualmente ao invés de usar index
+        const allPoints = await this._getAll(STORES.GPS_QUEUE);
+        const unsyncedPoints = allPoints.filter(point => !point.synced);
 
         // Ordenar por timestamp (mais antigos primeiro)
-        allPoints.sort((a, b) => a.timestamp - b.timestamp);
+        unsyncedPoints.sort((a, b) => a.timestamp - b.timestamp);
 
         // Retornar apenas o limite especificado
-        return allPoints.slice(0, limit);
+        return unsyncedPoints.slice(0, limit);
     }
 
     /**
@@ -403,7 +406,10 @@ class OfflineDB {
      */
     async clearSyncedGPSPoints() {
         await this.init();
-        const synced = await this._getByIndex(STORES.GPS_QUEUE, 'synced', true);
+        // FIX: IndexedDB getAll() com booleano true pode falhar
+        // Usar _getAll() e filtrar manualmente ao invés de usar index
+        const allPoints = await this._getAll(STORES.GPS_QUEUE);
+        const synced = allPoints.filter(point => point.synced);
         const promises = synced.map(point => this._delete(STORES.GPS_QUEUE, point.queueId));
         return Promise.all(promises);
     }

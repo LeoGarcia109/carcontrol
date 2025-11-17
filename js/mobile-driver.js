@@ -2048,6 +2048,36 @@ function updateOfflineIndicator(online) {
 }
 
 /**
+ * Limpar rotas pendentes ruins do IndexedDB
+ */
+async function clearBadPendingRoutes() {
+    try {
+        const routes = await offlineDB.getPendingRoutes();
+        if (routes.length === 0) {
+            console.log('[Cleanup] Nenhuma rota pendente para limpar');
+            return;
+        }
+
+        console.log(`[Cleanup] Encontradas ${routes.length} rotas pendentes`);
+
+        let removedCount = 0;
+        for (const route of routes) {
+            if (!route.synced) {
+                await offlineDB.removePendingRoute(route.tempId);
+                console.log(`[Cleanup] ✅ Rota removida: ${route.tempId}`);
+                removedCount++;
+            }
+        }
+
+        if (removedCount > 0) {
+            console.log(`[Cleanup] ✅ ${removedCount} rotas ruins removidas com sucesso!`);
+        }
+    } catch (error) {
+        console.error('[Cleanup] ❌ Erro ao limpar rotas pendentes:', error);
+    }
+}
+
+/**
  * Inicializar suporte offline
  */
 async function initOfflineSupport() {
@@ -2060,6 +2090,13 @@ async function initOfflineSupport() {
     } catch (error) {
         console.error('[Offline] Error initializing IndexedDB:', error);
         return;
+    }
+
+    // Limpar rotas pendentes ruins automaticamente
+    try {
+        await clearBadPendingRoutes();
+    } catch (error) {
+        console.error('[Offline] Error cleaning bad routes:', error);
     }
 
     // Inicializar Sync Manager
