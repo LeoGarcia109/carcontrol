@@ -482,7 +482,8 @@ class OfflineDB {
      */
     async getCachedUsageRecords(driverId) {
         await this.init();
-        if (driverId) {
+        // FIX: Validar que driverId é um número válido antes de usar como chave do índice
+        if (driverId && typeof driverId === 'number' && !isNaN(driverId)) {
             return this._getByIndex(STORES.CACHE_USAGE, 'driverId', driverId);
         }
         return this._getAll(STORES.CACHE_USAGE);
@@ -582,9 +583,45 @@ class OfflineDB {
             const transaction = this.db.transaction([storeName], 'readonly');
             const store = transaction.objectStore(storeName);
             const index = store.index(indexName);
-            const request = index.getAll(value);
+            let request;
 
-            request.onsuccess = () => resolve(request.result || []);
+            // FIX: Validar se value é uma chave válida para IndexedDB
+            // IndexedDB getAll() só aceita: string, number, Date, Array, IDBKeyRange
+            // Rejeitar: null, undefined (já tratado abaixo), boolean, object, symbol
+            if (value !== undefined && value !== null) {
+                const valueType = typeof value;
+                const isValidKeyType = ['string', 'number'].includes(valueType) ||
+                                     value instanceof Date ||
+                                     value instanceof IDBKeyRange ||
+                                     Array.isArray(value);
+
+                if (!isValidKeyType) {
+                    console.warn(`[IndexedDB] Valor inválido para índice '${indexName}': ${value} (tipo: ${valueType})`);
+                    resolve([]);
+                    return;
+                }
+            }
+
+            // Alguns navegadores falham ao usar boolean diretamente em getAll.
+            const shouldFilterManually = typeof value === 'boolean';
+
+            if (typeof value === 'undefined') {
+                request = index.getAll();
+            } else if (value instanceof IDBKeyRange) {
+                request = index.getAll(value);
+            } else if (shouldFilterManually) {
+                request = index.getAll();
+            } else {
+                request = index.getAll(value);
+            }
+
+            request.onsuccess = () => {
+                let results = request.result || [];
+                if (shouldFilterManually) {
+                    results = results.filter(item => item && item[indexName] === value);
+                }
+                resolve(results);
+            };
             request.onerror = () => reject(request.error);
         });
     }

@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CarControl - Motorista</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="alternate icon" type="image/x-icon" href="/favicon.ico">
     <link rel="stylesheet" href="css/mobile-driver.css?v=20251107-fix">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -585,19 +587,20 @@
     </div>
 
     <!-- Offline Support Scripts -->
-    <script src="js/offline-db.js?v=20251116-fix2"></script>
-    <script src="js/sync-manager.js?v=20251116-fix2"></script>
+    <script src="js/offline-db.js?v=20251116-fix3"></script>
+    <script src="js/sync-manager.js?v=20251116-fix3"></script>
 
     <!-- Core Scripts -->
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
-    <script src="js/mobile-driver.js?v=20251116-fix2"></script>
+    <script src="js/mobile-driver.js?v=20250117-debug1"></script>
 
     <!-- Service Worker Registration -->
     <script>
-        // Registrar Service Worker para suporte offline
+        // FIX: Registrar Service Worker IMEDIATAMENTE (antes de DOMContentLoaded)
+        // Isso garante que o SW esteja pronto quando initOfflineSupport() for chamado
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', async () => {
+            (async () => {
                 try {
                     console.log('[SW] 🔄 Iniciando processo de atualização forçada do Service Worker...');
 
@@ -619,13 +622,22 @@
                         console.log(`[SW] ✅ Cache deletado: ${cacheName} (${deleted})`);
                     }
 
-                    console.log('[SW] ✅ Limpeza completa! Registrando novo Service Worker...');
+                    console.log('[SW] ✅ Limpeza completa! Registrando novo Service Worker v1.0.4...');
 
-                    // PASSO 3: Registrar novo Service Worker
-                    const registration = await navigator.serviceWorker.register('/sw.js', {
+                    // PASSO 3: Limpar localStorage (pode ter versões antigas cacheadas)
+                    try {
+                        localStorage.clear();
+                        sessionStorage.clear();
+                        console.log('[SW] ✅ Storage limpo');
+                    } catch (e) {
+                        console.warn('[SW] ⚠️ Não foi possível limpar storage:', e);
+                    }
+
+                    // PASSO 4: Registrar novo Service Worker
+                    const registration = await navigator.serviceWorker.register('/sw.js?v=1.0.4', {
                         updateViaCache: 'none' // Não usar cache para o próprio sw.js
                     });
-                    console.log('[SW] ✅ Service Worker v1.0.2 registered:', registration.scope);
+                    console.log('[SW] ✅ Service Worker v1.0.4 registered:', registration.scope);
 
                     // PASSO 4: Forçar atualização imediata
                     await registration.update();
@@ -665,7 +677,7 @@
                 } catch (error) {
                     console.error('[SW] ❌ Service Worker registration failed:', error);
                 }
-            });
+            })();
         } else {
             console.warn('[SW] ⚠️ Service Workers not supported');
         }

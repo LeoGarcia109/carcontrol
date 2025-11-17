@@ -1,12 +1,13 @@
 // Service Worker para CarControl - Mobile Driver
-// Versão: 1.0.3
+// Versão: 1.0.4 - FORCE CACHE CLEANUP
 // Suporte offline com cache de assets e Background Sync
-// FIX: Arquivos JS com ?v= agora usam Network-First para sempre buscar versão nova
+// FIX: Limpeza total de cache antigo + Network-First para JS versionado
 
-const CACHE_VERSION = 'carcontrol-v1.0.3';
+const CACHE_VERSION = 'carcontrol-v1.0.4';
 const CACHE_STATIC = `${CACHE_VERSION}-static`;
 const CACHE_DYNAMIC = `${CACHE_VERSION}-dynamic`;
 const CACHE_API = `${CACHE_VERSION}-api`;
+const FALLBACK_FAVICON_BASE64 = 'AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADcpH/83KR//Nykf/wAAAAAAAAAAAAAAADcpH/83KR//Nykf/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADcpH/8nGBH/JxgR/ycYEf83KR//AAAAADcpH/8nGBH/JxgR/ycYEf83KR//AAAAAAAAAAAAAAAAAAAAAAAAAAA3KR//JxgR/6+jnP8nGBH/Nykf/69AHrQ3KR//JxgR/6+jnP8nGBH/Nykf/wAAAAAAAAAAAAAAAAAAAAD2bCv/azAY/2swGP9rMBj/azAY/2swGP9rMBj/azAY/2swGP9rMBj/azAY/zcpH/8AAAAAAAAAAAAAAAAAAAAA2E4d/9hOHf/YTh3/2E4d/9hOHf/YTh3/2E4d/9hOHf/YTh3/2E4d/9hOHf/YTh3/AAAAAAAAAAAAAAAAAAAAAE3T/P//jU///41P//+NT///jU///41P//+NT///jU///41P//+NT///jU//TdP8/wAAAAAAAAAAAAAAAAAAAAD/fz///38///ZsK//2bCv/9mwr//ZsK//2bCv/9mwr//ZsK//2bCv//38///9/P/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/fz////Xh3P/14dz/9eHc//Xh3P/14dz/9eHc/38//wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/38////14dz/9eHc//Xh3P/14dz/9eHc//Xh3P9/P/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP9/P///fz///38///9/P///fz///38///9/P///fz//AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==';
 
 // Assets estáticos para cache (offline-first)
 // NOTA: Arquivos JS com versionamento (?v=X) não devem estar aqui
@@ -95,6 +96,12 @@ self.addEventListener('fetch', (event) => {
 
     // Ignorar requisições que não sejam GET
     if (request.method !== 'GET') {
+        return;
+    }
+
+    // Tratamento especial para favicon
+    if (url.pathname === '/favicon.ico') {
+        event.respondWith(handleFaviconRequest(request));
         return;
     }
 
@@ -297,7 +304,7 @@ async function syncGPSQueue() {
  * Verificar se é um asset estático
  */
 function isStaticAsset(pathname) {
-    const staticExtensions = ['.html', '.css', '.js', '.png', '.jpg', '.jpeg', '.svg', '.gif', '.woff', '.woff2'];
+    const staticExtensions = ['.html', '.css', '.js', '.png', '.jpg', '.jpeg', '.svg', '.gif', '.woff', '.woff2', '.ico'];
     return staticExtensions.some(ext => pathname.endsWith(ext));
 }
 
@@ -336,6 +343,44 @@ function shouldCacheAPIEndpoint(pathname) {
     return CACHEABLE_API_ENDPOINTS.some(endpoint =>
         pathname.includes(endpoint)
     );
+}
+
+/**
+ * Tratar fetch do favicon com fallback inline
+ */
+async function handleFaviconRequest(request) {
+    try {
+        const cache = await caches.open(CACHE_STATIC);
+        const cached = await cache.match('/favicon.ico');
+        if (cached) {
+            return cached;
+        }
+
+        const response = await fetch(request);
+        if (response && response.ok) {
+            cache.put('/favicon.ico', response.clone());
+            return response;
+        }
+    } catch (error) {
+        console.warn('[SW] Favicon fetch failed, using fallback:', error);
+    }
+
+    return faviconFallbackResponse();
+}
+
+function faviconFallbackResponse() {
+    const binaryString = atob(FALLBACK_FAVICON_BASE64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return new Response(bytes, {
+        headers: {
+            'Content-Type': 'image/x-icon',
+            'Cache-Control': 'public, max-age=604800'
+        }
+    });
 }
 
 console.log('[SW] Service Worker loaded');

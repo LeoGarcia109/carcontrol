@@ -1641,10 +1641,21 @@ function formatarCategoria(categoria) {
 // ===========================
 
 function initSpeedDialFAB() {
+    console.log('[FAB] 🚀 Initializing Speed Dial FAB v1.0.4');
     const fabContainer = document.querySelector('.fab-container');
     const fabMain = document.getElementById('fabMain');
     const fabBackdrop = document.getElementById('fabBackdrop');
-    const fabSecondaryButtons = document.querySelectorAll('.fab-secondary');
+    ensureInspectionFabButton(fabContainer);
+    const fabSecondaryButtons = fabContainer ? fabContainer.querySelectorAll('.fab-secondary') : [];
+
+    // DEBUG: Log quantos botões foram encontrados
+    console.log(`[FAB] 📊 Found ${fabSecondaryButtons.length} secondary buttons`);
+    fabSecondaryButtons.forEach((btn, index) => {
+        const action = btn.dataset.action;
+        const isVisible = window.getComputedStyle(btn).opacity !== '0';
+        const hasPointerEvents = window.getComputedStyle(btn).pointerEvents !== 'none';
+        console.log(`[FAB]   ${index + 1}. data-action="${action}" | visible=${isVisible} | clickable=${hasPointerEvents}`);
+    });
 
     if (!fabContainer || !fabMain || !fabBackdrop) {
         console.error('Speed Dial FAB elements not found');
@@ -1679,6 +1690,44 @@ function initSpeedDialFAB() {
             }
         });
     });
+}
+
+function ensureInspectionFabButton(fabContainer) {
+    if (!fabContainer) {
+        console.warn('[FAB] fabContainer não encontrado!');
+        return;
+    }
+
+    let inspectionButton = fabContainer.querySelector('.fab-secondary[data-action="inspection"]');
+    if (inspectionButton) {
+        console.log('[FAB] ✅ Botão de inspeção já existe no HTML');
+        return;
+    }
+
+    console.log('[FAB] ⚠️ Botão de inspeção não encontrado, criando dinamicamente...');
+
+    inspectionButton = document.createElement('button');
+    inspectionButton.className = 'fab-secondary';
+    inspectionButton.dataset.action = 'inspection';
+    inspectionButton.setAttribute('aria-label', 'Nova Inspeção');
+    inspectionButton.innerHTML = `
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 11L12 14L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M21 12V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span class="fab-tooltip">Inspeção</span>
+    `;
+
+    const routeButton = fabContainer.querySelector('.fab-secondary[data-action="route"]');
+    const mainButton = fabContainer.querySelector('.fab-main');
+
+    if (routeButton) {
+        fabContainer.insertBefore(inspectionButton, routeButton);
+    } else if (mainButton) {
+        fabContainer.insertBefore(inspectionButton, mainButton);
+    } else {
+        fabContainer.appendChild(inspectionButton);
+    }
 }
 
 // ===========================

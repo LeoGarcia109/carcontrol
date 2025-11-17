@@ -651,12 +651,20 @@ body {
     pointer-events: all;
 }
 
+.fab-container.active .fab-secondary:nth-child(1) {
+    transition-delay: 0s;
+}
+
 .fab-container.active .fab-secondary:nth-child(2) {
     transition-delay: 0.05s;
 }
 
 .fab-container.active .fab-secondary:nth-child(3) {
     transition-delay: 0.1s;
+}
+
+.fab-container.active .fab-secondary:nth-child(4) {
+    transition-delay: 0.15s;
 }
 
 .fab-secondary:hover {
@@ -684,6 +692,14 @@ body {
 
 .fab-secondary[data-action="expense"]:hover {
     background: linear-gradient(135deg, rgba(72, 187, 120, 0.15), rgba(56, 161, 105, 0.15));
+}
+
+.fab-secondary[data-action="inspection"] {
+    color: var(--warning);
+}
+
+.fab-secondary[data-action="inspection"]:hover {
+    background: linear-gradient(135deg, rgba(237, 137, 54, 0.15), rgba(245, 158, 11, 0.15));
 }
 
 /* Tooltips dos botões */

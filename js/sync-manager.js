@@ -24,9 +24,14 @@ class SyncManager {
             return;
         }
 
-        // Verificar suporte a Background Sync
+        // FIX: Aguardar Service Worker estar pronto antes de qualquer operação
+        // Isso garante que o SW foi registrado e está disponível
         try {
+            console.log('[SyncManager] Waiting for Service Worker to be ready...');
             const registration = await navigator.serviceWorker.ready;
+            console.log('[SyncManager] Service Worker is ready!', registration.scope);
+
+            // Verificar suporte a Background Sync
             if ('sync' in registration) {
                 console.log('[SyncManager] Background Sync supported');
             } else {
@@ -34,6 +39,7 @@ class SyncManager {
             }
         } catch (error) {
             console.warn('[SyncManager] Could not check Background Sync support:', error);
+            // Continuar mesmo sem Background Sync - usar fallback manual
         }
 
         // Listen para mudanças de conectividade
@@ -502,13 +508,18 @@ class SyncManager {
      * Registrar sincronização no Background Sync API
      */
     async registerBackgroundSync(tag = 'sync-pending-data') {
-        if (!('serviceWorker' in navigator) || !('sync' in registration)) {
-            console.warn('[SyncManager] Background Sync not supported');
+        if (!('serviceWorker' in navigator)) {
+            console.warn('[SyncManager] Service Worker not supported');
             return false;
         }
 
         try {
             const registration = await navigator.serviceWorker.ready;
+            if (!('sync' in registration)) {
+                console.warn('[SyncManager] Background Sync not supported');
+                return false;
+            }
+
             await registration.sync.register(tag);
             console.log(`[SyncManager] Background sync registered: ${tag}`);
             return true;
