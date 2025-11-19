@@ -6,7 +6,7 @@
     <title>CarControl - Motorista</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="alternate icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="stylesheet" href="css/mobile-driver.css?v=20251119-v020">
+    <link rel="stylesheet" href="css/mobile-driver.css?v=20251119-v021">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -29,41 +29,88 @@
                 </div>
             </div>
 
-            <!-- Ações do Header: Offline + GPS + Logout agrupados à direita -->
-            <div class="header-actions">
-                <!-- Offline Indicator -->
-                <div id="offlineIndicator" class="offline-indicator online">
-                    <svg width="16" height="16" fill="currentColor">
-                        <circle cx="8" cy="8" r="6" fill="#10b981"/>
+            <!-- Hamburger Menu Button -->
+            <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Menu">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar Menu -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="user-info-sidebar">
+                <div class="user-avatar-large">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M4 20C4 17 7.58172 15 12 15C16.4183 15 20 17 20 20V21H4V20Z" stroke="currentColor" stroke-width="1.5"/>
                     </svg>
-                    <span>Online</span>
-                    <div id="offlinePendingBadge" class="pending-badge" style="display: none;">0</div>
+                </div>
+                <div class="user-details-sidebar">
+                    <span class="user-name-sidebar" id="driverNameSidebar">Motorista</span>
+                    <span class="user-role">Motorista</span>
+                </div>
+            </div>
+            <button class="sidebar-close" onclick="toggleSidebar()" aria-label="Fechar menu">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="sidebar-content">
+            <!-- Status Section -->
+            <div class="sidebar-section">
+                <h4 class="sidebar-section-title">Status do Sistema</h4>
+
+                <!-- Offline Indicator -->
+                <div id="offlineIndicatorSidebar" class="offline-indicator online">
+                    <svg width="20" height="20" fill="currentColor">
+                        <circle cx="10" cy="10" r="8" fill="#10b981"/>
+                    </svg>
+                    <span>Sistema Online</span>
+                    <div id="offlinePendingBadgeSidebar" class="pending-badge" style="display: none;">0</div>
                 </div>
 
                 <!-- GPS Indicator -->
-                <div id="gpsIndicator" class="gps-indicator inactive">
-                    <svg width="16" height="16" fill="currentColor">
-                        <circle cx="8" cy="8" r="3" fill="#94a3b8"/>
-                        <path d="M8 0v3m0 10v3M0 8h3m10 0h3" stroke="#94a3b8" stroke-width="1"/>
+                <div id="gpsIndicatorSidebar" class="gps-indicator inactive">
+                    <svg width="20" height="20" fill="currentColor">
+                        <circle cx="10" cy="10" r="4" fill="#94a3b8"/>
+                        <path d="M10 0v4m0 12v4M0 10h4m12 0h4" stroke="#94a3b8" stroke-width="1.5"/>
                     </svg>
                     <span>GPS Inativo</span>
                 </div>
+            </div>
 
-                <button class="logout-btn" onclick="logout()" aria-label="Sair">
+            <!-- App Info Section -->
+            <div class="sidebar-section">
+                <h4 class="sidebar-section-title">Informações do App</h4>
+                <div class="version-info-sidebar">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M9 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        <path d="M16 17L21 12L16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M12 8V12L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
-                </button>
+                    <span class="version-text">v0.2.1 Beta</span>
+                </div>
             </div>
         </div>
 
-        <!-- Version Info -->
-        <div class="version-info-mobile">
-            <span class="version-text">v0.2.0 Beta</span>
+        <div class="sidebar-footer">
+            <button class="logout-btn-sidebar" onclick="logout()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M9 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M16 17L21 12L16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                Sair do Sistema
+            </button>
         </div>
-    </header>
+    </aside>
 
     <!-- Main Content -->
     <main class="main-content">

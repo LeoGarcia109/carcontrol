@@ -24,6 +24,7 @@ let offlineIndicatorUpdater = null;
 let templatesArray = [];
 let checklistItens = [];
 let currentInspectionType = null;
+let inspectionStatusWarningShown = false;
 
 // ===========================
 // FUNÇÕES GPS
@@ -477,6 +478,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     window.closeExpenseModal = closeExpenseModal;
     window.toggleExpenseFields = toggleExpenseFields;
     window.submitExpense = submitExpense;
+    window.toggleSidebar = toggleSidebar; // Função da sidebar
 
     // Funções de inspeção
     window.openInspectionModal = openInspectionModal;
@@ -908,7 +910,13 @@ function populateVehicles() {
                         option.textContent = `${vehicle.plate} - ${vehicle.model}${maintenanceIndicator} 🟢`;
                     }
                 }
-            }).catch(err => console.error('Erro ao verificar inspeção:', err));
+            }).catch(err => {
+                console.error('Erro ao verificar inspeção:', err);
+                if (!inspectionStatusWarningShown) {
+                    showToast('Não foi possível verificar o status das inspeções. Continue com cautela.', 'warning');
+                    inspectionStatusWarningShown = true;
+                }
+            });
         }
 
         option.textContent = `${vehicle.plate} - ${vehicle.model}${maintenanceIndicator}${inspectionIndicator}`;
@@ -1261,6 +1269,120 @@ function showToast(message, type = 'success') {
         toast.style.animation = 'slideDown 0.3s ease';
         setTimeout(() => toast.remove(), 300);
     }, 3000);
+}
+
+// ===========================
+// SIDEBAR NAVIGATION
+// ===========================
+
+/**
+ * Toggle sidebar open/closed
+ */
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+
+    if (!sidebar || !overlay) {
+        console.error('Sidebar elements not found');
+        return;
+    }
+
+    const isOpen = sidebar.classList.contains('open');
+
+    if (isOpen) {
+        // Fechar sidebar
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
+    } else {
+        // Abrir sidebar
+        sidebar.classList.add('open');
+        overlay.classList.add('active');
+
+        // Sincronizar indicadores da sidebar com os principais
+        syncSidebarIndicators();
+    }
+}
+
+/**
+ * Sincronizar indicadores da sidebar com os indicadores principais
+ */
+function syncSidebarIndicators() {
+    // Sincronizar status online/offline
+    const mainOfflineIndicator = document.getElementById('offlineIndicator');
+    const sidebarOfflineIndicator = document.getElementById('offlineIndicatorSidebar');
+    const sidebarPendingBadge = document.getElementById('offlinePendingBadgeSidebar');
+
+    if (mainOfflineIndicator && sidebarOfflineIndicator) {
+        // Copiar classes de status
+        if (mainOfflineIndicator.classList.contains('online')) {
+            sidebarOfflineIndicator.classList.remove('offline');
+            sidebarOfflineIndicator.classList.add('online');
+            sidebarOfflineIndicator.innerHTML = `
+                <svg width="20" height="20" fill="currentColor">
+                    <circle cx="10" cy="10" r="8" fill="#10b981"/>
+                </svg>
+                <span>Sistema Online</span>
+            `;
+        } else {
+            sidebarOfflineIndicator.classList.remove('online');
+            sidebarOfflineIndicator.classList.add('offline');
+            sidebarOfflineIndicator.innerHTML = `
+                <svg width="20" height="20" fill="currentColor">
+                    <circle cx="10" cy="10" r="8" fill="#ef4444"/>
+                </svg>
+                <span>Sistema Offline</span>
+            `;
+        }
+    }
+
+    // Sincronizar badge de pendências
+    const mainPendingBadge = document.getElementById('offlinePendingBadge');
+    if (mainPendingBadge && sidebarPendingBadge) {
+        if (mainPendingBadge.style.display !== 'none' && pendingCount > 0) {
+            sidebarPendingBadge.textContent = pendingCount;
+            sidebarPendingBadge.style.display = 'flex';
+            sidebarPendingBadge.title = mainPendingBadge.title || `${pendingCount} itens pendentes`;
+        } else {
+            sidebarPendingBadge.style.display = 'none';
+        }
+    }
+
+    // Sincronizar status GPS
+    const mainGpsIndicator = document.getElementById('gpsIndicator');
+    const sidebarGpsIndicator = document.getElementById('gpsIndicatorSidebar');
+
+    if (mainGpsIndicator && sidebarGpsIndicator) {
+        // Copiar classes de status
+        if (mainGpsIndicator.classList.contains('active')) {
+            sidebarGpsIndicator.classList.remove('inactive');
+            sidebarGpsIndicator.classList.add('active');
+            sidebarGpsIndicator.innerHTML = `
+                <svg width="20" height="20" fill="currentColor">
+                    <circle cx="10" cy="10" r="4" fill="#10b981"/>
+                    <path d="M10 0v4m0 12v4M0 10h4m12 0h4" stroke="#10b981" stroke-width="1.5"/>
+                </svg>
+                <span>GPS Ativo</span>
+            `;
+        } else {
+            sidebarGpsIndicator.classList.remove('active');
+            sidebarGpsIndicator.classList.add('inactive');
+            sidebarGpsIndicator.innerHTML = `
+                <svg width="20" height="20" fill="currentColor">
+                    <circle cx="10" cy="10" r="4" fill="#94a3b8"/>
+                    <path d="M10 0v4m0 12v4M0 10h4m12 0h4" stroke="#94a3b8" stroke-width="1.5"/>
+                </svg>
+                <span>GPS Inativo</span>
+            `;
+        }
+    }
+
+    // Sincronizar nome do motorista na sidebar
+    const mainDriverName = document.getElementById('driverName');
+    const sidebarDriverName = document.getElementById('driverNameSidebar');
+
+    if (mainDriverName && sidebarDriverName) {
+        sidebarDriverName.textContent = mainDriverName.textContent;
+    }
 }
 
 // Função já definida globalmente (logout)
