@@ -1436,6 +1436,39 @@ select::-webkit-dropdown-list {
     border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
+/* ===================================
+   Version Info Mobile
+   =================================== */
+.version-info-mobile {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 16px;
+    background: rgba(102, 126, 234, 0.15);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 20px;
+    z-index: 998;
+    transition: all 0.3s ease;
+}
+
+.version-info-mobile:hover {
+    background: rgba(102, 126, 234, 0.25);
+    border-color: rgba(102, 126, 234, 0.5);
+    transform: translateX(-50%) translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.version-info-mobile .version-text {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.95);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
 /* Responsive adjustments for small screens */
 @media (max-width: 380px) {
     .inspection-checklist {
