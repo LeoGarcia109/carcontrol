@@ -39,34 +39,32 @@
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--gradient-dark);
+    /* Background sólido dark para compatibilidade total Safari/Chrome */
+    background: #1a1a2e;
     color: var(--text-primary);
     min-height: 100vh;
     overflow-x: hidden;
     position: relative;
 }
 
-/* Background Gradient Mesh */
+/* Background Gradient Mesh - SIMPLIFICADO para compatibilidade Safari */
 .background-gradient {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: var(--gradient-mesh);
+    /* Sutil efeito de overlay dark azulado */
+    background: rgba(102, 126, 234, 0.03);
     pointer-events: none;
     z-index: -1;
 }
 
-.background-gradient::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
-    animation: rotate 30s linear infinite;
+/* Removido efeito ::before animado para compatibilidade Safari */
+
+@-webkit-keyframes rotate {
+    from { -webkit-transform: rotate(0deg); transform: rotate(0deg); }
+    to { -webkit-transform: rotate(360deg); transform: rotate(360deg); }
 }
 
 @keyframes rotate {
@@ -683,6 +681,7 @@ body {
 }
 
 .fab-secondary[data-action="route"]:hover {
+    background: -webkit-linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
     background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
 }
 
@@ -691,6 +690,7 @@ body {
 }
 
 .fab-secondary[data-action="expense"]:hover {
+    background: -webkit-linear-gradient(135deg, rgba(72, 187, 120, 0.15), rgba(56, 161, 105, 0.15));
     background: linear-gradient(135deg, rgba(72, 187, 120, 0.15), rgba(56, 161, 105, 0.15));
 }
 
@@ -699,6 +699,7 @@ body {
 }
 
 .fab-secondary[data-action="inspection"]:hover {
+    background: -webkit-linear-gradient(135deg, rgba(237, 137, 54, 0.15), rgba(245, 158, 11, 0.15));
     background: linear-gradient(135deg, rgba(237, 137, 54, 0.15), rgba(245, 158, 11, 0.15));
 }
 
@@ -980,6 +981,7 @@ form {
 }
 
 .btn-submit.btn-danger {
+    background: -webkit-linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
     background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
     box-shadow: 0 4px 12px rgba(245, 101, 101, 0.3);
 }
@@ -1048,6 +1050,7 @@ select option:disabled {
 
 /* Selected option */
 select option:checked {
+    background: -webkit-linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
@@ -1126,6 +1129,7 @@ select::-webkit-dropdown-list {
     position: absolute;
     top: -6px;
     right: -6px;
+    background: -webkit-linear-gradient(135deg, #ef4444, #dc2626);
     background: linear-gradient(135deg, #ef4444, #dc2626);
     color: white;
     font-size: 0.75rem;
@@ -1139,6 +1143,18 @@ select::-webkit-dropdown-list {
     padding: 0 6px;
     box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
     animation: pulse-badge 2s infinite;
+    -webkit-animation: pulse-badge 2s infinite;
+}
+
+@-webkit-keyframes pulse-badge {
+    0%, 100% {
+        -webkit-transform: scale(1);
+        transform: scale(1);
+    }
+    50% {
+        -webkit-transform: scale(1.1);
+        transform: scale(1.1);
+    }
 }
 
 @keyframes pulse-badge {
