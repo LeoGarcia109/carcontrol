@@ -36,16 +36,25 @@ async function apiRequest(endpoint, options = {}) {
 
         console.log(`🟢 API Response: ${response.status} ${response.statusText} - ${endpoint}`);
 
+        const contentType = response.headers.get('content-type') || '';
+        const responseText = await response.text();
+        const isJsonResponse = contentType.includes('application/json');
+
         // Verificar se a resposta foi bem-sucedida
         if (!response.ok) {
-            // Tentar extrair mensagem de erro do backend
             let errorMessage = `Erro ${response.status}`;
-            try {
-                const errorData = await response.json();
-                errorMessage = errorData.error || errorData.message || errorMessage;
-                console.error(`🔴 API Error Data:`, errorData);
-            } catch (e) {
-                // Se não conseguir parsear JSON, usar mensagem padrão
+
+            if (isJsonResponse && responseText) {
+                try {
+                    const errorData = JSON.parse(responseText);
+                    errorMessage = errorData.error || errorData.message || errorMessage;
+                    console.error(`🔴 API Error Data:`, errorData);
+                } catch (e) {
+                    errorMessage = response.statusText || errorMessage;
+                }
+            } else if (responseText) {
+                errorMessage = sanitizeResponseText(responseText) || response.statusText || errorMessage;
+            } else {
                 errorMessage = response.statusText || errorMessage;
             }
 
@@ -63,14 +72,34 @@ async function apiRequest(endpoint, options = {}) {
             throw new Error(errorMessage);
         }
 
-        // Retornar resposta em JSON
-        const jsonData = await response.json();
+        if (!responseText) {
+            return {};
+        }
+
+        if (!isJsonResponse) {
+            const snippet = sanitizeResponseText(responseText).slice(0, 120);
+            throw new Error(`Resposta inválida da API: ${snippet || 'conteúdo inesperado'}`);
+        }
+
+        let jsonData;
+        try {
+            jsonData = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error(`🔴 Erro ao parsear JSON (${endpoint}):`, parseError, responseText);
+            throw new Error('Resposta JSON inválida da API');
+        }
+
         console.log(`✅ API Success:`, endpoint, jsonData.success ? '✓' : '✗');
         return jsonData;
     } catch (error) {
         console.error(`🔴 Erro na requisição ${endpoint}:`, error);
         throw error;
     }
+}
+
+function sanitizeResponseText(text) {
+    if (!text) return '';
+    return text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 // ================================================================

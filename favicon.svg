@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="carBody" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4F8DFF"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" ry="12" fill="#0F172A"/>
+  <g transform="translate(4 20)">
+    <rect x="4" y="12" width="48" height="12" rx="6" fill="#0B1661" opacity="0.5"/>
+    <path d="M8 20h40l4-10-6-10H18l-6 6-6 10z" fill="url(#carBody)" stroke="#1E3A8A" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="18" y="4" width="20" height="8" rx="3" fill="#E0F2FE" stroke="#93C5FD" stroke-width="2"/>
+    <circle cx="18" cy="26" r="6" fill="#111827" stroke="#9CA3AF" stroke-width="2"/>
+    <circle cx="42" cy="26" r="6" fill="#111827" stroke="#9CA3AF" stroke-width="2"/>
+    <circle cx="18" cy="26" r="2" fill="#D1D5DB"/>
+    <circle cx="42" cy="26" r="2" fill="#D1D5DB"/>
+    <rect x="10" y="16" width="4" height="4" rx="1" fill="#FCD34D"/>
+    <rect x="46" y="16" width="4" height="4" rx="1" fill="#FCD34D"/>
+  </g>
+</svg>
